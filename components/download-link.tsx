@@ -15,7 +15,7 @@ export function DownloadLink({
       : "inline-flex min-h-11 items-center justify-center rounded-md border border-line bg-white px-4 text-sm font-semibold";
 
   return (
-    <a href={href} className={classes}>
+    <a href={href} download className={classes}>
       {children}
     </a>
   );
