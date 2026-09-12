@@ -4,6 +4,9 @@ const nextConfig: NextConfig = {
   agentRules: false,
   poweredByHeader: false,
   serverExternalPackages: [],
+  outputFileTracingExcludes: {
+    "*": ["./data/**", "./tests/**"],
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: "12mb",

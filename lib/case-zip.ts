@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
 import { uploadPath } from "./files";
+import { readBytes } from "./runtime-fs";
 import {
   buildStoredRelativePath,
   caseZipDownloadName,
@@ -48,7 +48,7 @@ export function buildCaseZip(
     );
     entries.push({
       name: uniqueName(preferred, taken),
-      data: readFileSync(path),
+      data: readBytes(path),
     });
   }
 

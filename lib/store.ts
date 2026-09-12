@@ -1,12 +1,13 @@
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  renameSync,
-  writeFileSync,
-} from "node:fs";
 import { dirname } from "node:path";
+import { isProductionBuild } from "./build-phase";
 import { dataDir, dbPath } from "./paths";
+import {
+  fileExists,
+  makeDir,
+  readUtf8,
+  renameFile,
+  writeBytes,
+} from "./runtime-fs";
 import { ensureSeeded } from "./seed-data";
 import type { Database } from "./types";
 
@@ -21,24 +22,20 @@ function emptyDb(): Database {
   };
 }
 
-function isProductionBuild(): boolean {
-  return process.env.NEXT_PHASE === "phase-production-build";
-}
-
 export function loadDb(): Database {
   if (isProductionBuild()) {
     return emptyDb();
   }
 
-  mkdirSync(dataDir(), { recursive: true });
+  makeDir(dataDir());
   const path = dbPath();
-  if (!existsSync(path)) {
+  if (!fileExists(path)) {
     const seeded = ensureSeeded(emptyDb());
     saveDb(seeded);
     return seeded;
   }
 
-  const parsed = JSON.parse(readFileSync(path, "utf8")) as Database;
+  const parsed = JSON.parse(readUtf8(path)) as Database;
   const db: Database = {
     brokers: parsed.brokers ?? [],
     cases: parsed.cases ?? [],
@@ -57,11 +54,12 @@ export function loadDb(): Database {
 }
 
 export function saveDb(db: Database): void {
+  if (isProductionBuild()) return;
   const path = dbPath();
-  mkdirSync(dirname(path), { recursive: true });
+  makeDir(dirname(path));
   const tmp = `${path}.tmp`;
-  writeFileSync(tmp, JSON.stringify(db, null, 2), "utf8");
-  renameSync(tmp, path);
+  writeBytes(tmp, JSON.stringify(db, null, 2));
+  renameFile(tmp, path);
 }
 
 export function updateDb<T>(fn: (db: Database) => T): T {

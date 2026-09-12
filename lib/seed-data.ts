@@ -1,9 +1,9 @@
-import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { hashPassword, nowIso } from "./crypto";
 import { DEMO_BROKER, DEMO_CASES } from "./demo";
 import { buildStoredRelativePath } from "./pack";
 import { uploadDir } from "./paths";
+import { makeDir, writeBytes } from "./runtime-fs";
 import { samplePdfBytes } from "./sample-pdf";
 import { syncFactFindOnDb } from "./fact-find";
 import { getScenario } from "./scenarios";
@@ -24,9 +24,9 @@ function daysFromNow(days: number): string {
 
 function writeSampleFile(storedName: string, title: string): number {
   const full = join(uploadDir(), storedName);
-  mkdirSync(dirname(full), { recursive: true });
+  makeDir(dirname(full));
   const bytes = samplePdfBytes(title);
-  writeFileSync(full, bytes);
+  writeBytes(full, bytes);
   return bytes.length;
 }
 

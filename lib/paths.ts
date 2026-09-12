@@ -6,7 +6,7 @@ export const ROOT = process.cwd();
 const PREVIEW_DIR_NAME = "mortgage-broker-intake";
 
 /** Env bag so tests can pass a fake process.env without mutating globals. */
-export type PathEnv = NodeJS.ProcessEnv;
+export type PathEnv = Record<string, string | undefined>;
 
 /**
  * Vercel (and other serverless hosts) set VERCEL=1. The project directory
