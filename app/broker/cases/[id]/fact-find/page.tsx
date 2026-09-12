@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CaseSectionNav } from "@/components/case-section-nav";
 import { FactFindFieldRow } from "@/components/fact-find-field-row";
+import { FactFindHandoff } from "@/components/fact-find-handoff";
 import { SampleBanner } from "@/components/sample-banner";
 import { requireBroker } from "@/lib/auth";
 import { FACT_FIND_GROUP_LABELS, FACT_FIND_SOURCE_LABELS, isFactFindSourceKey } from "@/lib/fact-find-schema";
@@ -79,6 +80,12 @@ export default async function FactFindPage({
           cleared
         </p>
       </section>
+
+      <FactFindHandoff
+        caseId={caseRecord.id}
+        confirmedCount={counts.confirmed}
+        acceptedCount={caseRecord.acceptedCount}
+      />
 
       {waiting.length > 0 ? (
         <section className="space-y-2 rounded-xl border border-dashed border-line bg-panel p-4">

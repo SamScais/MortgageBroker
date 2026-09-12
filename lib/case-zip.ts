@@ -9,13 +9,18 @@ import {
   type PackScope,
 } from "./pack";
 import { loadDb } from "./store";
+import type { CaseRecord } from "./types";
 import { createZipStore } from "./zip";
 
-export function buildCaseZip(
+export type ZipFileEntry = { name: string; data: Buffer };
+
+export function collectCaseFileEntries(
   brokerId: string,
   caseId: string,
   scope: PackScope,
-): { filename: string; bytes: Buffer; count: number } | { error: string; status: number } {
+):
+  | { caseRecord: CaseRecord; entries: ZipFileEntry[] }
+  | { error: string; status: number } {
   const db = loadDb();
   const caseRecord = db.cases.find(
     (row) => row.id === caseId && row.brokerId === brokerId,
@@ -30,7 +35,7 @@ export function buildCaseZip(
   );
   const selected = selectFilesForPack(items, files, scope);
   const taken = new Set<string>();
-  const entries: Array<{ name: string; data: Buffer }> = [];
+  const entries: ZipFileEntry[] = [];
 
   for (const { item, file } of selected) {
     const path = uploadPath(file.storedName);
@@ -52,7 +57,18 @@ export function buildCaseZip(
     });
   }
 
-  if (entries.length === 0) {
+  return { caseRecord, entries };
+}
+
+export function buildCaseZip(
+  brokerId: string,
+  caseId: string,
+  scope: PackScope,
+): { filename: string; bytes: Buffer; count: number } | { error: string; status: number } {
+  const collected = collectCaseFileEntries(brokerId, caseId, scope);
+  if ("error" in collected) return collected;
+
+  if (collected.entries.length === 0) {
     return {
       error:
         scope === "accepted"
@@ -63,8 +79,8 @@ export function buildCaseZip(
   }
 
   return {
-    filename: caseZipDownloadName(caseRecord.clientLabel, scope),
-    bytes: createZipStore(entries),
-    count: entries.length,
+    filename: caseZipDownloadName(collected.caseRecord.clientLabel, scope),
+    bytes: createZipStore(collected.entries),
+    count: collected.entries.length,
   };
 }

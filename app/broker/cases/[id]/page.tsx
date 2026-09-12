@@ -4,6 +4,7 @@ import { markNeedsReviewAction } from "@/app/actions/review";
 import { CaseSectionNav } from "@/components/case-section-nav";
 import { CopyButton } from "@/components/copy-button";
 import { DownloadLink } from "@/components/download-link";
+import { FactFindHandoff } from "@/components/fact-find-handoff";
 import { FactFindSummary } from "@/components/fact-find-summary";
 import { ReminderButton } from "@/components/reminder-button";
 import { ReviewForm } from "@/components/review-form";
@@ -57,6 +58,11 @@ export default async function CaseDetailPage({
       <FactFindSummary
         caseId={caseRecord.id}
         factFind={factFind}
+        acceptedCount={caseRecord.acceptedCount}
+      />
+      <FactFindHandoff
+        caseId={caseRecord.id}
+        confirmedCount={caseRecord.factFindConfirmedCount}
         acceptedCount={caseRecord.acceptedCount}
       />
 

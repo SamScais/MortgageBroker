@@ -14,8 +14,9 @@ Local MVP: a broker creates a client case, shares **one unique upload link**, an
 6. Use the review queue to open a case, view the file, accept it, or request a resubmit with a short note.
 7. On the case page, **Download** a single file, or **Download zip (accepted)** to pack only accepted documents (rejected / needs-resubmit / empty items are left out). There is also an optional **Download zip (all uploaded)**.
 8. Open the **Fact find** tab. Accepted documents produce a **draft PAYG fact-find**. Every field starts as draft — **Confirm / Edit / Clear** before it sticks. Nothing is lodged.
+9. After confirming fields, **Download CSV** or **Download JSON** of confirmed values only, or **Download handoff pack** (confirmed export + accepted documents). Draft and cleared fields are left out.
 
-Out of scope: CRM, lender integrations, loan calculations, bank APIs, billing, live email, public production hosting, custom domains, Firebase, Drive/SharePoint sync, self-employed tax/NOA extraction, live Open Banking, Quickli, and ApplyOnline lodge. A **private Vercel preview** of this review build is supported (see below).
+Out of scope: CRM, lender integrations, loan calculations, bank APIs, billing, live email, public production hosting, custom domains, Firebase, Drive/SharePoint sync, self-employed tax/NOA extraction, live Open Banking, Quickli lodge, and ApplyOnline lodge. A **private Vercel preview** of this review build is supported (see below). The confirmed export is a **handoff aid** so you can paste or map into Quickli / FLEX — it does not replace those tools and does not lodge anything.
 
 ## How to run locally
 
@@ -77,6 +78,49 @@ Priya has **accepted** SAMPLE photo ID, payslips, 90-day bank statements, Medica
 
 Extraction is deterministic SAMPLE/FAKE data (not live OCR). The field model is structured so a real OCR pipeline could plug in later. Living-expense rows are marked **declared vs HEM later**. This app never auto-lodges.
 
+## Try the confirmed export / handoff pack
+
+1. On Priya’s **Fact find**, confirm a few fields (for example full name and employer). Leave others as draft, or clear one.
+2. Use **Download CSV** or **Download JSON**. Filenames are `SAMPLE-{client}-confirmed-fact-find-{date}.csv` / `.json`. Header comments and the JSON `notice` say SAMPLE / FAKE, handoff aid only, not lodged.
+3. Open the file — only **Confirmed** rows should appear. Draft and cleared values stay out.
+4. **Download accepted zip** still packs accepted documents only.
+5. **Download handoff pack** builds `SAMPLE-{client}-handoff-{date}.zip` with a SAMPLE/FAKE notice, the confirmed CSV + JSON, and the accepted documents folder.
+6. Tom has no confirmed fields, so CSV / JSON / handoff are not offered until something is confirmed.
+
+This is a handoff aid, not a CRM replacement. Nothing is lodged to Quickli, FLEX, ApplyOnline or any lender.
+
+## Quickli / FLEX-ish field mapping (PAYG)
+
+Use this table when pasting confirmed values into a servicing calculator or broker CRM. Names are **indicative** (Quickli-ish / FLEX-ish), not a live integration. Confirm-all, serviceability, Illion and ApplyOnline lodge stay out of scope.
+
+| Group | Field | Quickli-ish | FLEX-ish | Notes |
+| ----- | ----- | ----------- | -------- | ----- |
+| Photo identification | Full name | Applicant — full name | Applicant / contact name | Match to the application. |
+| Photo identification | Date of birth | Applicant — date of birth | Date of birth | Use the photo-ID date. |
+| Photo identification | Residential address | Applicant — residential address | Current residential address | Confirm against the licence. |
+| Photo identification | Document type | Identification — document type | Primary ID type | e.g. NSW driver licence. |
+| Photo identification | Document number | Identification — document number | Primary ID number | Often masked in this SAMPLE demo. |
+| Photo identification | Expiry | Identification — expiry | Primary ID expiry | Reject expired ID first. |
+| Payslips | Employer name | PAYG employment — employer | Employer name | Latest accepted slips. |
+| Payslips | Job title | PAYG employment — occupation | Occupation / job title | |
+| Payslips | Employment basis | PAYG employment — type (full-time / part-time / casual) | Employment status | Affects income treatment. |
+| Payslips | Employment start date | PAYG employment — start date | Employment commenced | |
+| Payslips | Gross base pay | PAYG base income (per pay) — annualise in Quickli | Gross base income | Export is per-pay as on the slip. |
+| Payslips | Pay frequency | PAYG income — pay frequency | Income frequency | Weekly / fortnightly / monthly. |
+| Payslips | Year-to-date gross | YTD income (sense-check) | YTD income (notes) | Not always a calculator input. |
+| Payslips | Allowances / overtime | PAYG overtime / allowances (haircut in calculator) | Additional PAYG income | Flagged if present. |
+| Bank account | Institution | Asset — bank / institution | Asset institution | 90-day statements. |
+| Bank account | BSB / account | Asset — BSB / account number | Account BSB / number | Last-four in this SAMPLE demo. |
+| Bank account | Statement period | Statement period (notes) | Statement dates | Check the 90-day window. |
+| Bank account | Closing balance | Asset — account balance | Asset balance | |
+| Genuine savings | Genuine savings / deposit notes | Genuine savings / deposit notes | Deposit / genuine savings notes | Paste into notes. |
+| Spotted liabilities | Mortgage / credit card / personal loan / HECS-HELP payments | Matching liability repayment | Matching liability repayment | Credit cards usually need the **limit** for servicing. |
+| Living expenses | Groceries, rent, utilities, childcare, transport | Living expenses — category (declared vs HEM later) | Expense — category | Declared from statements. Compare to HEM later. |
+| Liability documents | Type, lender, limit, balance, repayment | Liability — type / lender / limit / balance / repayment | Liability type / creditor / limit / balance / repayment | From the accepted liability document. |
+| Secondary identification | Type, name match, number (optional), expiry | Secondary identification — type / notes / number / expiry | Secondary ID type / name match / number / expiry | Number is optional. |
+
+CSV and JSON exports include `quickli_hint` and `flex_hint` columns so you can map without leaving the file. Refinance current-loan statement fields use the same liability shape (`liability.current_loan_statement.*`).
+
 ## Try the zip / download flow
 
 1. Sign in as the demo broker.
@@ -96,7 +140,7 @@ This is a **private review URL**, not a public customer launch. Do not attach a 
 1. In [Vercel](https://vercel.com), **Add New… → Project** and import GitHub `SamScais/MortgageBroker`.
 2. **Framework Preset:** Next.js (detected from `vercel.json` / the repo).
 3. **Root Directory:** leave as the repository root.
-4. **Branch:** select this review branch (the PAYG fact-find + intake + accepted-only zip tip — e.g. `cursor/payg-draft-fact-find-03ec` or a `vercel-preview` branch based on it). Do not deploy `main` unless that is explicitly required.
+4. **Branch:** select this review branch (intake + accepted-only zip + PAYG fact-find + confirmed export / handoff, stacked on the Vercel preview-ready tip). Do not deploy `main` unless that is explicitly required.
 5. Leave **Production** / custom domain empty. Use the generated `*.vercel.app` preview URL only.
 6. Under **Deployment Protection**, turn on **Vercel Authentication** (or Standard Protection) so only invited Vercel team members can open the URL.
 7. Environment variables (Project → Settings → Environment Variables), apply to **Preview**:
@@ -144,4 +188,4 @@ There is no cloud bucket, no production auth provider, and no live email. The re
 npm test
 ```
 
-Covers sample-name labelling, status transitions, overdue rules, AU checklist coverage, demo reminder wording, packed filenames, accepted-only zip filtering, PAYG fact-find draft → confirm / edit / clear (accepted documents only), and Vercel preview path / seed behaviour.
+Covers sample-name labelling, status transitions, overdue rules, AU checklist coverage, demo reminder wording, packed filenames, accepted-only zip filtering, PAYG fact-find draft → confirm / edit / clear (accepted documents only), confirmed-only CSV/JSON export and handoff pack, Quickli/FLEX field mapping coverage, and Vercel preview path / seed behaviour.
