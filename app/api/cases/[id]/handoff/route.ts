@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { usingFactFindOverlay } from "@/lib/fact-find-cookie";
 import { buildHandoffZip } from "@/lib/fact-find-handoff";
 import { contentDisposition } from "@/lib/pack";
 import { getSession } from "@/lib/session";
@@ -15,7 +16,9 @@ export async function GET(
   }
 
   const { id } = await context.params;
-  const packed = buildHandoffZip(session.brokerId, id);
+  const packed = await usingFactFindOverlay(() =>
+    buildHandoffZip(session.brokerId, id),
+  );
   if ("error" in packed) {
     return NextResponse.json({ error: packed.error }, { status: packed.status });
   }

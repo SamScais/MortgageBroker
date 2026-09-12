@@ -71,7 +71,7 @@ Priya has **accepted** SAMPLE photo ID, payslips, 90-day bank statements, Medica
 2. Open **SAMPLE Client — Priya Nair**.
 3. On the case page you should see **PAYG fact-find (draft)** with draft field counts. Choose **Fact find** (or **Open fact-find**).
 4. Fields are grouped by source (photo ID, payslips, bank statements, spotted liabilities, living expenses, liability documents, secondary ID). Each row has a **Draft** badge and a source hint.
-5. **Confirm** a field — the badge becomes **Confirmed** and the value persists after refresh.
+5. **Confirm** a field — the badge becomes **Confirmed** and the value persists after refresh (locally in `data/db.json`; on Vercel preview in a signed cookie — see storage below).
 6. **Edit** a field, change the value, **Save as confirmed**.
 7. **Clear** a field — it is stored as cleared and will not be used. Confirm again to restore the SAMPLE draft.
 8. Open **SAMPLE Client — Tom Brennan** → **Fact find**. There are no accepted documents, so there are no draft fields.
@@ -86,6 +86,8 @@ Extraction is deterministic SAMPLE/FAKE data (not live OCR). The field model is 
 4. **Download accepted zip** still packs accepted documents only (alongside the confirmed export).
 5. **Download handoff pack** builds `SAMPLE-{client}-handoff-{date}.zip` with a SAMPLE/FAKE notice, the confirmed CSV + JSON, and the accepted documents folder.
 6. Tom has no confirmed fields, so CSV / JSON / handoff are not offered until something is confirmed.
+
+On a Vercel preview, confirm at least one field, then refresh or export immediately — the confirmed field must still be there. Confirm state is **not** only in `/tmp`; it is also kept in the signed `mb_ff` cookie so a later serverless request can still build the CSV/JSON.
 
 This is a handoff aid, not a CRM replacement. Nothing is lodged to Quickli, FLEX, ApplyOnline or any lender.
 
@@ -162,7 +164,20 @@ This is a **private review URL**, not a public customer launch. Do not attach a 
 
 `npm run build` is the Vercel build command. SAMPLE data is seeded when each serverless instance boots if the temp database is missing.
 
-**Preview storage is ephemeral.** Vercel’s filesystem is read-only except `/tmp`. Each instance seeds its own SAMPLE database and PDFs. Uploads and review actions may disappear when that instance is replaced. That is expected for this review build — there is no cloud bucket.
+**Preview storage is mixed — read this before testing Confirm → Export.**
+
+Vercel’s filesystem is read-only except `/tmp`. Each serverless instance seeds its own SAMPLE database and PDFs under `/tmp/mortgage-broker-intake/`. That folder is **not shared** across instances and is wiped when the instance is replaced.
+
+| What | Local (`npm run dev`) | Vercel preview |
+| ---- | --------------------- | -------------- |
+| Cases, uploads, review actions, accepted zip | `data/` on disk | Ephemeral `/tmp` per instance. May vanish on a new request. |
+| **Confirmed / cleared fact-find fields** | `data/db.json` | **Signed httpOnly cookie `mb_ff`** (plus `/tmp` on that instance). Survives refresh and a later Export CSV/JSON on a different instance. |
+| Broker login | Signed `mb_session` cookie | Same signed `mb_session` cookie |
+| Cloud bucket / Blob / KV | Not used | Not used — none is configured; do not create a paid store for this preview |
+
+No Vercel Blob or KV token is required. Confirm → Export works on preview because export/handoff/fact-find reads merge the signed cookie overlay onto the freshly seeded drafts.
+
+Uploads and “accept / reject” may still disappear between instances. That is expected for this review build. The accepted-only zip still works on an instance that already has the seeded Priya PDFs.
 
 ## How storage works
 
@@ -170,9 +185,15 @@ Locally (`npm run dev` / `npm start`):
 
 - Case data: `data/db.json`
 - Uploaded files: `data/uploads/cases/{caseId}/{docType}/SAMPLE-{client}-{doctype}-{YYYYMMDD}-{status}.ext`
-- Broker session: signed HTTP-only cookie (see `SESSION_SECRET`)
+- Broker session: signed HTTP-only cookie `mb_session` (see `SESSION_SECRET`)
+- Confirmed fact-find fields: `data/db.json` (the `mb_ff` cookie is also written as a backup)
 
-On Vercel preview, the same layout is created under `/tmp/mortgage-broker-intake/` (or `DATA_DIR` if you override it). Copied client links use `NEXT_PUBLIC_APP_URL` when set, otherwise `https://$VERCEL_URL`.
+On Vercel preview:
+
+- The same file layout is created under `/tmp/mortgage-broker-intake/` (or `DATA_DIR` if you override it). This is **ephemeral and per-instance**.
+- Confirmed / cleared fact-find fields are also written to a signed, compressed, httpOnly cookie (`mb_ff`, same `SESSION_SECRET`). Export CSV/JSON and the handoff pack **merge that cookie onto the seeded drafts**, so Confirm on one request still exports on the next.
+- Copied client links use `NEXT_PUBLIC_APP_URL` when set, otherwise `https://$VERCEL_URL`.
+- There is no Vercel Blob / KV / database. Do not set those up for this review build.
 
 Example (local):
 
@@ -194,4 +215,4 @@ There is no cloud bucket, no production auth provider, and no live email. The re
 npm test
 ```
 
-Covers sample-name labelling, status transitions, overdue rules, AU checklist coverage, demo reminder wording, packed filenames, accepted-only zip filtering, PAYG fact-find draft → confirm / edit / clear (accepted documents only), confirmed-only CSV/JSON export and handoff pack, Quickli/FLEX field mapping coverage, and Vercel preview path / seed behaviour.
+Covers sample-name labelling, status transitions, overdue rules, AU checklist coverage, demo reminder wording, packed filenames, accepted-only zip filtering, PAYG fact-find draft → confirm / edit / clear (accepted documents only), confirmed-only CSV/JSON export and handoff pack, Quickli/FLEX field mapping coverage, signed fact-find overlay persistence across ephemeral preview instances, and Vercel preview path / seed behaviour.

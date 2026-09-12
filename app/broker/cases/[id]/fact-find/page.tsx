@@ -5,6 +5,7 @@ import { FactFindFieldRow } from "@/components/fact-find-field-row";
 import { FactFindHandoff } from "@/components/fact-find-handoff";
 import { SampleBanner } from "@/components/sample-banner";
 import { requireBroker } from "@/lib/auth";
+import { usingFactFindOverlay } from "@/lib/fact-find-cookie";
 import { FACT_FIND_GROUP_LABELS, FACT_FIND_SOURCE_LABELS, isFactFindSourceKey } from "@/lib/fact-find-schema";
 import { syncFactFindOnDb } from "@/lib/fact-find";
 import { countFieldStates } from "@/lib/fact-find-state";
@@ -22,23 +23,28 @@ export default async function FactFindPage({
 }) {
   const session = await requireBroker();
   const { id } = await params;
-  const caseRecord = getCaseForBroker(session.brokerId, id);
+  const { caseRecord, factFind, items } = await usingFactFindOverlay(() => {
+    const currentCase = getCaseForBroker(session.brokerId, id);
+    const currentFactFind = updateDb((db) => {
+      const current = db.cases.find(
+        (row) => row.id === id && row.brokerId === session.brokerId,
+      );
+      if (!current) return undefined;
+      return syncFactFindOnDb(
+        db,
+        current,
+        db.items.filter((row) => row.caseId === id),
+        db.files,
+      );
+    });
+    return {
+      caseRecord: currentCase,
+      factFind: currentFactFind,
+      items: currentCase ? itemsForCase(currentCase.id) : [],
+    };
+  });
   if (!caseRecord) notFound();
 
-  const factFind = updateDb((db) => {
-    const current = db.cases.find(
-      (row) => row.id === id && row.brokerId === session.brokerId,
-    );
-    if (!current) return undefined;
-    return syncFactFindOnDb(
-      db,
-      current,
-      db.items.filter((row) => row.caseId === id),
-      db.files,
-    );
-  });
-
-  const items = itemsForCase(caseRecord.id);
   const counts = countFieldStates(factFind?.fields ?? []);
   const waiting = items.filter(
     (item) =>
@@ -73,7 +79,10 @@ export default async function FactFindPage({
         <h2 className="text-lg text-ink">Broker confirm every field</h2>
         <p className="text-sm text-ink-soft">
           Fields are drafted only from accepted documents. Confirm, edit or clear
-          each one. Confirmed values persist. This app never auto-lodges.
+          each one. Confirmed values persist after refresh — locally in{" "}
+          <code className="rounded bg-muted px-1">data/db.json</code>, and on
+          the Vercel preview in a signed browser cookie (the temp database is
+          per-instance). This app never auto-lodges.
         </p>
         <p className="text-sm">
           {counts.draft} draft · {counts.confirmed} confirmed · {counts.cleared}{" "}

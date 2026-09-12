@@ -1,4 +1,5 @@
 import { DownloadLink } from "@/components/download-link";
+import { HandoffFieldMap } from "@/components/handoff-field-map";
 
 export function FactFindHandoff({
   caseId,
@@ -61,6 +62,7 @@ export function FactFindHandoff({
           </p>
         )}
       </div>
+      <HandoffFieldMap />
     </section>
   );
 }

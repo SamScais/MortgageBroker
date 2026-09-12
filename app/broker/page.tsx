@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SampleBanner } from "@/components/sample-banner";
 import { StatusBadge } from "@/components/status-badge";
 import { requireBroker } from "@/lib/auth";
+import { usingFactFindOverlay } from "@/lib/fact-find-cookie";
 import { formatDate } from "@/lib/format";
 import { listCasesForBroker } from "@/lib/queries";
 
@@ -9,7 +10,9 @@ export const dynamic = "force-dynamic";
 
 export default async function BrokerHomePage() {
   const session = await requireBroker();
-  const cases = listCasesForBroker(session.brokerId);
+  const cases = await usingFactFindOverlay(() =>
+    listCasesForBroker(session.brokerId),
+  );
 
   return (
     <div className="space-y-5">

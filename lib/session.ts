@@ -55,6 +55,8 @@ export async function setSession(payload: Omit<SessionPayload, "exp">) {
 export async function clearSession() {
   const store = await cookies();
   store.delete(COOKIE);
+  const { clearFactFindOverlayCookie } = await import("./fact-find-cookie");
+  await clearFactFindOverlayCookie();
 }
 
 export function hasSessionCookie(cookieHeader: string | null): boolean {

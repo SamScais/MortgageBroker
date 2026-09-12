@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { usingFactFindOverlay } from "@/lib/fact-find-cookie";
 import {
   buildConfirmedFactFindExport,
   isExportFormat,
@@ -27,34 +28,36 @@ export async function GET(
     );
   }
 
-  const db = loadDb();
-  const caseRecord = db.cases.find(
-    (row) => row.id === id && row.brokerId === session.brokerId,
-  );
-  if (!caseRecord) {
-    return NextResponse.json({ error: "Case not found." }, { status: 404 });
-  }
+  return usingFactFindOverlay(async () => {
+    const db = loadDb();
+    const caseRecord = db.cases.find(
+      (row) => row.id === id && row.brokerId === session.brokerId,
+    );
+    if (!caseRecord) {
+      return NextResponse.json({ error: "Case not found." }, { status: 404 });
+    }
 
-  const factFind = db.factFinds.find((row) => row.caseId === id);
-  const packed = buildConfirmedFactFindExport(
-    factFind?.fields ?? [],
-    {
-      caseId: caseRecord.id,
-      clientLabel: caseRecord.clientLabel,
-      kind: "payg",
-      exportedAt: new Date().toISOString(),
-    },
-    formatParam,
-  );
-  if ("error" in packed) {
-    return NextResponse.json({ error: packed.error }, { status: 404 });
-  }
+    const factFind = db.factFinds.find((row) => row.caseId === id);
+    const packed = buildConfirmedFactFindExport(
+      factFind?.fields ?? [],
+      {
+        caseId: caseRecord.id,
+        clientLabel: caseRecord.clientLabel,
+        kind: "payg",
+        exportedAt: new Date().toISOString(),
+      },
+      formatParam,
+    );
+    if ("error" in packed) {
+      return NextResponse.json({ error: packed.error }, { status: 404 });
+    }
 
-  return new NextResponse(packed.body, {
-    headers: {
-      "Content-Type": packed.contentType,
-      "Content-Disposition": contentDisposition(packed.filename, "attachment"),
-      "Cache-Control": "private, no-store",
-    },
+    return new NextResponse(packed.body, {
+      headers: {
+        "Content-Type": packed.contentType,
+        "Content-Disposition": contentDisposition(packed.filename, "attachment"),
+        "Cache-Control": "private, no-store",
+      },
+    });
   });
 }
