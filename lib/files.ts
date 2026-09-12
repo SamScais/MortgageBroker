@@ -14,7 +14,7 @@ import {
   uniqueName,
   type PackedNameInput,
 } from "./pack";
-import { UPLOAD_DIR } from "./paths";
+import { uploadDir } from "./paths";
 import type { ItemStatus } from "./types";
 
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -78,7 +78,7 @@ export function resolveUploadPath(storedName: string): string | null {
   ) {
     return null;
   }
-  const root = resolve(UPLOAD_DIR);
+  const root = resolve(uploadDir());
   const full = resolve(root, ...parts);
   if (full !== root && !full.startsWith(root + sep)) {
     return null;
@@ -95,7 +95,7 @@ export function uploadPath(storedName: string): string | null {
 function allocateRelativePath(preferred: string): string {
   const taken = new Set<string>();
   let candidate = preferred;
-  while (existsSync(join(UPLOAD_DIR, candidate))) {
+  while (existsSync(join(uploadDir(), candidate))) {
     taken.add(candidate);
     candidate = uniqueName(preferred, taken);
   }
@@ -132,7 +132,7 @@ export async function saveUpload(
     );
   }
 
-  mkdirSync(UPLOAD_DIR, { recursive: true });
+  mkdirSync(uploadDir(), { recursive: true });
   const storedName = plannedStoredName(meta, file.name);
   const target = resolveUploadPath(storedName);
   if (!target) {

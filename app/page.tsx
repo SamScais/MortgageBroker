@@ -48,7 +48,10 @@ export default async function HomePage() {
         </ul>
         <p className="mt-3">
           It does not calculate loans, talk to banks, or give compliance advice.
-          Files are stored on disk in <code className="rounded bg-muted px-1">data/</code>.
+          Locally, files live in{" "}
+          <code className="rounded bg-muted px-1">data/</code>. On a Vercel
+          preview they are seeded into a writable temp folder and may not
+          persist across instances.
         </p>
       </section>
     </div>
