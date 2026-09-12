@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireBroker } from "@/lib/auth";
 import { nowIso } from "@/lib/crypto";
 import { relocateStoredFile } from "@/lib/files";
+import { syncFactFindOnDb } from "@/lib/fact-find";
 import { canBrokerReview } from "@/lib/status";
 import { loadDb, updateDb } from "@/lib/store";
 import type { ChecklistItem, ItemStatus, StoredFile } from "@/lib/types";
@@ -79,11 +80,20 @@ export async function reviewItemAction(
       caseRecord.clientLabel,
       decision,
     );
+    if (decision === "accepted") {
+      syncFactFindOnDb(
+        next,
+        caseRecord,
+        next.items.filter((row) => row.caseId === caseRecord.id),
+        next.files,
+      );
+    }
   });
 
   revalidatePath("/broker");
   revalidatePath("/broker/queue");
   revalidatePath(`/broker/cases/${caseRecord.id}`);
+  revalidatePath(`/broker/cases/${caseRecord.id}/fact-find`);
   revalidatePath(`/u/${caseRecord.uploadToken}`);
   return null;
 }

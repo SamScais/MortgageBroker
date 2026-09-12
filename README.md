@@ -13,8 +13,9 @@ Local MVP: a broker creates a client case, shares **one unique upload link**, an
 5. Overdue files are flagged automatically. **Send reminder** writes to a **DEMO email log** (nothing is sent to a real inbox).
 6. Use the review queue to open a case, view the file, accept it, or request a resubmit with a short note.
 7. On the case page, **Download** a single file, or **Download zip (accepted)** to pack only accepted documents (rejected / needs-resubmit / empty items are left out). There is also an optional **Download zip (all uploaded)**.
+8. Open the **Fact find** tab. Accepted documents produce a **draft PAYG fact-find**. Every field starts as draft — **Confirm / Edit / Clear** before it sticks. Nothing is lodged.
 
-Out of scope: CRM, lender integrations, loan calculations, bank APIs, billing, live email, production hosting, and Drive/SharePoint sync.
+Out of scope: CRM, lender integrations, loan calculations, bank APIs, billing, live email, production hosting, Drive/SharePoint sync, self-employed tax/NOA extraction, live Open Banking, Quickli, and ApplyOnline lodge.
 
 ## How to run locally
 
@@ -61,19 +62,32 @@ Seeded cases (already in the review queue / overdue demo):
 | SAMPLE Client — Priya Nair | Purchase | [http://localhost:3000/u/demo-purchase-priya](http://localhost:3000/u/demo-purchase-priya) |
 | SAMPLE Client — Tom Brennan | Refinance | [http://localhost:3000/u/demo-refinance-tom](http://localhost:3000/u/demo-refinance-tom) |
 
-Priya has files waiting for review, plus an **accepted** bank statement and a **rejected** secondary ID (expired licence SAMPLE). Tom’s file is **overdue**, with a rejected photo ID you can ask the “client” to replace.
+Priya has **accepted** SAMPLE photo ID, payslips, 90-day bank statements, Medicare secondary ID, and a credit card statement so you can open the fact-find without uploading. Remaining purchase items (employment letter, genuine savings, contract) stay needed. Tom’s file is **overdue**, with a rejected photo ID and no accepted documents — the fact-find stays empty.
+
+## Try the PAYG fact-find flow
+
+1. Sign in as the demo broker.
+2. Open **SAMPLE Client — Priya Nair**.
+3. On the case page you should see **PAYG fact-find (draft)** with draft field counts. Choose **Fact find** (or **Open fact-find**).
+4. Fields are grouped by source (photo ID, payslips, bank statements, spotted liabilities, living expenses, liability documents, secondary ID). Each row has a **Draft** badge and a source hint.
+5. **Confirm** a field — the badge becomes **Confirmed** and the value persists after refresh.
+6. **Edit** a field, change the value, **Save as confirmed**.
+7. **Clear** a field — it is stored as cleared and will not be used. Confirm again to restore the SAMPLE draft.
+8. Open **SAMPLE Client — Tom Brennan** → **Fact find**. There are no accepted documents, so there are no draft fields.
+
+Extraction is deterministic SAMPLE/FAKE data (not live OCR). The field model is structured so a real OCR pipeline could plug in later. Living-expense rows are marked **declared vs HEM later**. This app never auto-lodges.
 
 ## Try the zip / download flow
 
 1. Sign in as the demo broker.
 2. Open **SAMPLE Client — Priya Nair**.
 3. On a file row, use **Download** (saves that one PDF with a `SAMPLE-{client}-{doctype}-{date}-{status}` name).
-4. Use **Download zip (accepted)**. The zip should contain only the accepted bank statements file, under `cases/case-demo-purchase/bank_statements/`. The expired-licence reject, payslips (uploaded), and photo ID (needs review) are left out.
+4. Use **Download zip (accepted)**. The zip should contain only accepted documents (photo ID, payslips, bank statements, secondary ID, credit card statement). Needed items (employment letter, genuine savings, contract) stay out.
 5. Optional: **Download zip (all uploaded)** includes every file that is actually on disk, still organised by document type.
 
 Tom’s case has no accepted documents, so the accepted zip is not offered.
 
-`npm run seed` rebuilds these SAMPLE files in the layout below.
+`npm run seed` rebuilds these SAMPLE files and resets the Priya fact-find drafts in the layout below.
 
 ## How storage works
 
@@ -103,4 +117,4 @@ There is no cloud bucket, no production auth provider, and no live email. The re
 npm test
 ```
 
-Covers sample-name labelling, status transitions, overdue rules, AU checklist coverage, demo reminder wording, packed filenames, and accepted-only zip filtering.
+Covers sample-name labelling, status transitions, overdue rules, AU checklist coverage, demo reminder wording, packed filenames, accepted-only zip filtering, and PAYG fact-find draft → confirm / edit / clear (accepted documents only).

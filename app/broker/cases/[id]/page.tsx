@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { markNeedsReviewAction } from "@/app/actions/review";
+import { CaseSectionNav } from "@/components/case-section-nav";
 import { CopyButton } from "@/components/copy-button";
 import { DownloadLink } from "@/components/download-link";
+import { FactFindSummary } from "@/components/fact-find-summary";
 import { ReminderButton } from "@/components/reminder-button";
 import { ReviewForm } from "@/components/review-form";
 import { SampleBanner } from "@/components/sample-banner";
@@ -11,6 +13,7 @@ import { requireBroker } from "@/lib/auth";
 import { formatBytes, formatDate, formatDateTime } from "@/lib/format";
 import { extensionOf, packedFilename } from "@/lib/pack";
 import {
+  factFindForCase,
   filesForCase,
   filesForItem,
   getCaseForBroker,
@@ -32,6 +35,7 @@ export default async function CaseDetailPage({
 
   const items = itemsForCase(caseRecord.id);
   const uploadedCount = filesForCase(caseRecord.id).length;
+  const factFind = factFindForCase(caseRecord.id);
 
   return (
     <div className="space-y-6">
@@ -48,6 +52,13 @@ export default async function CaseDetailPage({
         </p>
       </div>
       <SampleBanner />
+      <CaseSectionNav caseId={caseRecord.id} active="documents" />
+
+      <FactFindSummary
+        caseId={caseRecord.id}
+        factFind={factFind}
+        acceptedCount={caseRecord.acceptedCount}
+      />
 
       <section className="space-y-3 rounded-xl border border-line bg-panel p-4">
         <h2 className="text-lg text-ink">Client upload link</h2>

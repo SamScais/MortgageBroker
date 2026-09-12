@@ -71,12 +71,67 @@ export type ReminderLog = {
   isDemo: true;
 };
 
+export const FACT_FIND_FIELD_STATES = [
+  "draft",
+  "confirmed",
+  "cleared",
+] as const;
+
+export type FactFindFieldState = (typeof FACT_FIND_FIELD_STATES)[number];
+
+export const FACT_FIND_GROUPS = [
+  "photo_id",
+  "payslips",
+  "bank_account",
+  "genuine_savings",
+  "spotted_liabilities",
+  "living_expenses",
+  "liability_docs",
+  "secondary_id",
+] as const;
+
+export type FactFindGroupId = (typeof FACT_FIND_GROUPS)[number];
+
+export const FACT_FIND_SOURCE_KEYS = [
+  "photo_id",
+  "payslips",
+  "bank_statements",
+  "existing_debts",
+  "current_loan_statement",
+  "secondary_id",
+] as const;
+
+export type FactFindSourceKey = (typeof FACT_FIND_SOURCE_KEYS)[number];
+
+export type FactFindField = {
+  key: string;
+  group: FactFindGroupId;
+  label: string;
+  value: string;
+  draftValue: string;
+  state: FactFindFieldState;
+  sourceItemKey: string;
+  sourceItemTitle: string;
+  sourceFileId: string | null;
+  hint: string;
+};
+
+export type FactFindRecord = {
+  id: string;
+  caseId: string;
+  kind: "payg";
+  fields: FactFindField[];
+  extractedAt: string;
+  updatedAt: string;
+};
+
 export type Database = {
   brokers: Broker[];
   cases: CaseRecord[];
   items: ChecklistItem[];
   files: StoredFile[];
   reminders: ReminderLog[];
+  factFinds: FactFindRecord[];
 };
 
 export type SessionPayload = {
