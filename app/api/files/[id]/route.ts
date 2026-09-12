@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { NextResponse } from "next/server";
-import { uploadPath } from "@/lib/files";
+import { packedDownloadName, uploadPath } from "@/lib/files";
+import { contentDisposition } from "@/lib/pack";
 import { findFile, getCaseByToken } from "@/lib/queries";
 import { getSession } from "@/lib/session";
 
@@ -17,7 +18,9 @@ export async function GET(
   }
 
   const session = await getSession();
-  const token = new URL(request.url).searchParams.get("token") ?? "";
+  const url = new URL(request.url);
+  const token = url.searchParams.get("token") ?? "";
+  const download = url.searchParams.get("download") === "1";
   const brokerOwns =
     session && session.brokerId === found.caseRecord.brokerId;
   const clientOwns =
@@ -32,11 +35,25 @@ export async function GET(
     return NextResponse.json({ error: "File missing on disk." }, { status: 404 });
   }
 
+  const filename = packedDownloadName(
+    {
+      caseId: found.caseRecord.id,
+      docType: found.item.itemKey,
+      clientLabel: found.caseRecord.clientLabel,
+      status: found.item.status,
+      uploadedAt: found.file.uploadedAt,
+    },
+    found.file.originalName,
+  );
+
   const bytes = await readFile(path);
   return new NextResponse(new Uint8Array(bytes), {
     headers: {
       "Content-Type": found.file.mimeType || "application/octet-stream",
-      "Content-Disposition": `inline; filename="${found.file.originalName.replace(/"/g, "")}"`,
+      "Content-Disposition": contentDisposition(
+        filename,
+        download ? "attachment" : "inline",
+      ),
       "Cache-Control": "private, no-store",
     },
   });

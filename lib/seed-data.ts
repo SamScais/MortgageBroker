@@ -1,7 +1,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { hashPassword, nowIso } from "./crypto";
 import { DEMO_BROKER, DEMO_CASES } from "./demo";
+import { buildStoredRelativePath } from "./pack";
 import { UPLOAD_DIR } from "./paths";
 import { samplePdfBytes } from "./sample-pdf";
 import { getScenario } from "./scenarios";
@@ -21,9 +22,10 @@ function daysFromNow(days: number): string {
 }
 
 function writeSampleFile(storedName: string, title: string): number {
-  mkdirSync(UPLOAD_DIR, { recursive: true });
+  const full = join(UPLOAD_DIR, storedName);
+  mkdirSync(dirname(full), { recursive: true });
   const bytes = samplePdfBytes(title);
-  writeFileSync(join(UPLOAD_DIR, storedName), bytes);
+  writeFileSync(full, bytes);
   return bytes.length;
 }
 
@@ -51,10 +53,23 @@ function buildItems(
 }
 
 function fileFor(
-  itemId: string,
+  caseRecord: CaseRecord,
+  itemKey: string,
   title: string,
-  storedName: string,
+  status: ItemStatus,
 ): StoredFile {
+  const itemId = `item-${caseRecord.id}-${itemKey}`;
+  const uploadedAt = nowIso();
+  const storedName = buildStoredRelativePath(
+    {
+      caseId: caseRecord.id,
+      docType: itemKey,
+      clientLabel: caseRecord.clientLabel,
+      status,
+      uploadedAt,
+    },
+    ".pdf",
+  );
   const sizeBytes = writeSampleFile(storedName, title);
   return {
     id: `file-${itemId}`,
@@ -63,7 +78,7 @@ function fileFor(
     storedName,
     mimeType: "application/pdf",
     sizeBytes,
-    uploadedAt: nowIso(),
+    uploadedAt,
   };
 }
 
@@ -110,11 +125,20 @@ export function ensureSeeded(db: Database): Database {
 
   db.cases = [purchase, refinance];
 
-  const purchaseItems = buildItems(purchase.id, "purchase", {
-    photo_id: "needs_review",
-    payslips: "uploaded",
-    bank_statements: "accepted",
-  });
+  const purchaseItems = buildItems(
+    purchase.id,
+    "purchase",
+    {
+      photo_id: "needs_review",
+      payslips: "uploaded",
+      bank_statements: "accepted",
+      secondary_id: "rejected_resubmit",
+    },
+    {
+      secondary_id:
+        "This looks like an expired licence. Please upload a current colour copy, all four corners visible.",
+    },
+  );
 
   const refinanceItems = buildItems(
     refinance.id,
@@ -131,25 +155,25 @@ export function ensureSeeded(db: Database): Database {
 
   db.items = [...purchaseItems, ...refinanceItems];
   db.files = [
+    fileFor(purchase, "photo_id", "SAMPLE Photo ID — Priya Nair", "needs_review"),
+    fileFor(purchase, "payslips", "SAMPLE Payslips — Priya Nair", "uploaded"),
     fileFor(
-      `item-${purchase.id}-photo_id`,
-      "SAMPLE Photo ID — Priya Nair",
-      "demo-priya-photo-id.pdf",
-    ),
-    fileFor(
-      `item-${purchase.id}-payslips`,
-      "SAMPLE Payslips — Priya Nair",
-      "demo-priya-payslips.pdf",
-    ),
-    fileFor(
-      `item-${purchase.id}-bank_statements`,
+      purchase,
+      "bank_statements",
       "SAMPLE Bank statements — Priya Nair",
-      "demo-priya-bank-statements.pdf",
+      "accepted",
     ),
     fileFor(
-      `item-${refinance.id}-photo_id`,
+      purchase,
+      "secondary_id",
+      "SAMPLE Secondary ID — Priya Nair (expired licence)",
+      "rejected_resubmit",
+    ),
+    fileFor(
+      refinance,
+      "photo_id",
       "SAMPLE Photo ID — Tom Brennan (rejected)",
-      "demo-tom-photo-id.pdf",
+      "rejected_resubmit",
     ),
   ];
   db.reminders = [];
