@@ -1,12 +1,7 @@
-import {
-  createWriteStream,
-  existsSync,
-  mkdirSync,
-  renameSync,
-} from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
+import { isProductionBuild } from "./build-phase";
 import {
   buildStoredRelativePath,
   extensionOf,
@@ -14,7 +9,13 @@ import {
   uniqueName,
   type PackedNameInput,
 } from "./pack";
-import { UPLOAD_DIR } from "./paths";
+import { uploadDir } from "./paths";
+import {
+  fileExists,
+  makeDir,
+  openWriteStream,
+  renameFile,
+} from "./runtime-fs";
 import type { ItemStatus } from "./types";
 
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -78,7 +79,7 @@ export function resolveUploadPath(storedName: string): string | null {
   ) {
     return null;
   }
-  const root = resolve(UPLOAD_DIR);
+  const root = resolve(uploadDir());
   const full = resolve(root, ...parts);
   if (full !== root && !full.startsWith(root + sep)) {
     return null;
@@ -87,15 +88,16 @@ export function resolveUploadPath(storedName: string): string | null {
 }
 
 export function uploadPath(storedName: string): string | null {
+  if (isProductionBuild()) return null;
   const full = resolveUploadPath(storedName);
-  if (!full || !existsSync(full)) return null;
+  if (!full || !fileExists(full)) return null;
   return full;
 }
 
 function allocateRelativePath(preferred: string): string {
   const taken = new Set<string>();
   let candidate = preferred;
-  while (existsSync(join(UPLOAD_DIR, candidate))) {
+  while (fileExists(join(uploadDir(), candidate))) {
     taken.add(candidate);
     candidate = uniqueName(preferred, taken);
   }
@@ -132,17 +134,17 @@ export async function saveUpload(
     );
   }
 
-  mkdirSync(UPLOAD_DIR, { recursive: true });
+  makeDir(uploadDir());
   const storedName = plannedStoredName(meta, file.name);
   const target = resolveUploadPath(storedName);
   if (!target) {
     throw new Error("Could not store that file.");
   }
-  mkdirSync(dirname(target), { recursive: true });
+  makeDir(dirname(target));
   const readable = Readable.fromWeb(
     file.stream() as unknown as import("node:stream/web").ReadableStream,
   );
-  await pipeline(readable, createWriteStream(target));
+  await pipeline(readable, openWriteStream(target));
   return {
     storedName,
     sizeBytes: file.size,
@@ -165,7 +167,7 @@ export function relocateStoredFile(
   const nextName = allocateRelativePath(preferred);
   const target = resolveUploadPath(nextName);
   if (!target) return storedName;
-  mkdirSync(dirname(target), { recursive: true });
-  renameSync(from, target);
+  makeDir(dirname(target));
+  renameFile(from, target);
   return nextName;
 }

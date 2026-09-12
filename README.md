@@ -15,7 +15,7 @@ Local MVP: a broker creates a client case, shares **one unique upload link**, an
 7. On the case page, **Download** a single file, or **Download zip (accepted)** to pack only accepted documents (rejected / needs-resubmit / empty items are left out). There is also an optional **Download zip (all uploaded)**.
 8. Open the **Fact find** tab. Accepted documents produce a **draft PAYG fact-find**. Every field starts as draft — **Confirm / Edit / Clear** before it sticks. Nothing is lodged.
 
-Out of scope: CRM, lender integrations, loan calculations, bank APIs, billing, live email, production hosting, Drive/SharePoint sync, self-employed tax/NOA extraction, live Open Banking, Quickli, and ApplyOnline lodge.
+Out of scope: CRM, lender integrations, loan calculations, bank APIs, billing, live email, public production hosting, custom domains, Firebase, Drive/SharePoint sync, self-employed tax/NOA extraction, live Open Banking, Quickli, and ApplyOnline lodge. A **private Vercel preview** of this review build is supported (see below).
 
 ## How to run locally
 
@@ -36,7 +36,7 @@ npm test    # unit tests for statuses, scenarios, reminders
 npm run build
 ```
 
-`npm run seed` resets the local database and sample PDFs. The first page load will also seed demo data if `data/db.json` is missing.
+`npm run seed` resets the local database and sample PDFs. The first page load (and Vercel instance boot) will also seed demo data if the database file is missing.
 
 ## Demo broker
 
@@ -89,15 +89,42 @@ Tom’s case has no accepted documents, so the accepted zip is not offered.
 
 `npm run seed` rebuilds these SAMPLE files and resets the Priya fact-find drafts in the layout below.
 
+## Private Vercel preview
+
+This is a **private review URL**, not a public customer launch. Do not attach a custom domain.
+
+1. In [Vercel](https://vercel.com), **Add New… → Project** and import GitHub `SamScais/MortgageBroker`.
+2. **Framework Preset:** Next.js (detected from `vercel.json` / the repo).
+3. **Root Directory:** leave as the repository root.
+4. **Branch:** select this review branch (the PAYG fact-find + intake + accepted-only zip tip — e.g. `cursor/payg-draft-fact-find-03ec` or a `vercel-preview` branch based on it). Do not deploy `main` unless that is explicitly required.
+5. Leave **Production** / custom domain empty. Use the generated `*.vercel.app` preview URL only.
+6. Under **Deployment Protection**, turn on **Vercel Authentication** (or Standard Protection) so only invited Vercel team members can open the URL.
+7. Environment variables (Project → Settings → Environment Variables), apply to **Preview**:
+
+   | Name | Value |
+   | ---- | ----- |
+   | `SESSION_SECRET` | A long random string (do not reuse the example default on a shared URL) |
+   | `NEXT_PUBLIC_APP_URL` | **Leave unset** so copied client links use the deployment hostname |
+
+   Do not set `DATA_DIR`, `DATABASE_PATH`, or `UPLOAD_DIR`. On Vercel they default to a writable temp directory.
+
+8. Deploy. Open the preview URL, sign in with `broker@demo.local` / `DemoBroker1!`.
+
+`npm run build` is the Vercel build command. SAMPLE data is seeded when each serverless instance boots if the temp database is missing.
+
+**Preview storage is ephemeral.** Vercel’s filesystem is read-only except `/tmp`. Each instance seeds its own SAMPLE database and PDFs. Uploads and review actions may disappear when that instance is replaced. That is expected for this review build — there is no cloud bucket.
+
 ## How storage works
 
-This MVP keeps everything on the machine that runs `npm run dev`:
+Locally (`npm run dev` / `npm start`):
 
 - Case data: `data/db.json`
 - Uploaded files: `data/uploads/cases/{caseId}/{docType}/SAMPLE-{client}-{doctype}-{YYYYMMDD}-{status}.ext`
 - Broker session: signed HTTP-only cookie (see `SESSION_SECRET`)
 
-Example:
+On Vercel preview, the same layout is created under `/tmp/mortgage-broker-intake/` (or `DATA_DIR` if you override it). Copied client links use `NEXT_PUBLIC_APP_URL` when set, otherwise `https://$VERCEL_URL`.
+
+Example (local):
 
 `data/uploads/cases/case-demo-purchase/bank_statements/SAMPLE-priya-nair-bank-statements-20260912-accepted.pdf`
 
@@ -117,4 +144,4 @@ There is no cloud bucket, no production auth provider, and no live email. The re
 npm test
 ```
 
-Covers sample-name labelling, status transitions, overdue rules, AU checklist coverage, demo reminder wording, packed filenames, accepted-only zip filtering, and PAYG fact-find draft → confirm / edit / clear (accepted documents only).
+Covers sample-name labelling, status transitions, overdue rules, AU checklist coverage, demo reminder wording, packed filenames, accepted-only zip filtering, PAYG fact-find draft → confirm / edit / clear (accepted documents only), and Vercel preview path / seed behaviour.

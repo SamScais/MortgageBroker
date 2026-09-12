@@ -1,9 +1,9 @@
-import { readFile } from "node:fs/promises";
 import { NextResponse } from "next/server";
 import { packedDownloadName, uploadPath } from "@/lib/files";
 import { contentDisposition } from "@/lib/pack";
 import { findFile, getCaseByToken } from "@/lib/queries";
 import { getSession } from "@/lib/session";
+import { readBytesAsync } from "@/lib/runtime-fs";
 
 export const runtime = "nodejs";
 
@@ -46,7 +46,7 @@ export async function GET(
     found.file.originalName,
   );
 
-  const bytes = await readFile(path);
+  const bytes = await readBytesAsync(path);
   return new NextResponse(new Uint8Array(bytes), {
     headers: {
       "Content-Type": found.file.mimeType || "application/octet-stream",
