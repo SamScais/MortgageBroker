@@ -3,9 +3,11 @@ import { getScenario } from "./scenarios";
 import { caseIsOverdue } from "./reminders";
 import { caseNeedsAttention } from "./status";
 import { loadDb } from "./store";
+import { countFieldStates } from "./fact-find-state";
 import type {
   CaseRecord,
   ChecklistItem,
+  FactFindRecord,
   ReminderLog,
   StoredFile,
 } from "./types";
@@ -19,6 +21,8 @@ export type CaseWithMeta = CaseRecord & {
   reviewCount: number;
   acceptedCount: number;
   itemCount: number;
+  factFindDraftCount: number;
+  factFindConfirmedCount: number;
 };
 
 export function itemsForCase(caseId: string): ChecklistItem[] {
@@ -35,10 +39,16 @@ export function latestFileForItem(itemId: string): StoredFile | undefined {
   return filesForItem(itemId)[0];
 }
 
+export function factFindForCase(caseId: string): FactFindRecord | undefined {
+  return loadDb().factFinds.find((row) => row.caseId === caseId);
+}
+
 export function decorateCase(caseRecord: CaseRecord): CaseWithMeta {
   const items = itemsForCase(caseRecord.id);
   const statuses = items.map((item) => item.status);
   const scenario = getScenario(caseRecord.scenarioId);
+  const factFind = factFindForCase(caseRecord.id);
+  const factCounts = countFieldStates(factFind?.fields ?? []);
   return {
     ...caseRecord,
     scenarioName: scenario?.name ?? caseRecord.scenarioId,
@@ -55,6 +65,8 @@ export function decorateCase(caseRecord: CaseRecord): CaseWithMeta {
     ).length,
     acceptedCount: items.filter((item) => item.status === "accepted").length,
     itemCount: items.length,
+    factFindDraftCount: factCounts.draft,
+    factFindConfirmedCount: factCounts.confirmed,
   };
 }
 

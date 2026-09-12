@@ -6,7 +6,7 @@ import { resetDemoData } from "../lib/seed-data";
 import { saveDb } from "../lib/store";
 import { listZipEntryNames } from "../lib/zip";
 
-test("seeded Priya accepted zip packs only the bank statements file", () => {
+test("seeded Priya accepted zip packs only accepted documents", () => {
   saveDb(resetDemoData());
 
   const accepted = buildCaseZip(
@@ -16,17 +16,30 @@ test("seeded Priya accepted zip packs only the bank statements file", () => {
   );
   assert.ok(!("error" in accepted), "accepted zip should build");
   const acceptedNames = listZipEntryNames(accepted.bytes);
-  assert.equal(acceptedNames.length, 1);
-  assert.match(acceptedNames[0] ?? "", /cases\/case-demo-purchase\/bank_statements\//);
-  assert.match(acceptedNames[0] ?? "", /SAMPLE-priya-nair-bank-statements-\d{8}-accepted\.pdf/);
-  assert.ok(!acceptedNames.some((name) => /photo_id|secondary_id|payslips/.test(name)));
+  assert.equal(acceptedNames.length, 5);
+  for (const docType of [
+    "bank_statements",
+    "photo_id",
+    "payslips",
+    "secondary_id",
+    "existing_debts",
+  ]) {
+    assert.ok(
+      acceptedNames.some((name) => name.includes(`/${docType}/`)),
+      `missing ${docType}`,
+    );
+  }
+  assert.ok(
+    !acceptedNames.some((name) =>
+      /employment_letter|contract_of_sale|genuine_savings/.test(name),
+    ),
+  );
 
   const all = buildCaseZip(DEMO_BROKER.id, DEMO_CASES.purchase.id, "all");
   assert.ok(!("error" in all), "all-uploaded zip should build");
   const allNames = listZipEntryNames(all.bytes);
-  assert.equal(allNames.length, 4);
-  assert.ok(allNames.some((name) => name.includes("secondary_id")));
-  assert.ok(allNames.some((name) => name.includes("rejected-resubmit")));
+  assert.equal(allNames.length, 5);
+  assert.ok(allNames.every((name) => name.includes("-accepted.pdf")));
 
   const tom = buildCaseZip(
     DEMO_BROKER.id,

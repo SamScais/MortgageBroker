@@ -17,6 +17,7 @@ function emptyDb(): Database {
     items: [],
     files: [],
     reminders: [],
+    factFinds: [],
   };
 }
 
@@ -35,6 +36,7 @@ export function loadDb(): Database {
     items: parsed.items ?? [],
     files: parsed.files ?? [],
     reminders: parsed.reminders ?? [],
+    factFinds: parsed.factFinds ?? [],
   };
 
   if (db.brokers.length === 0) {

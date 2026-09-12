@@ -63,6 +63,9 @@ export default async function BrokerHomePage() {
                 <p className="mt-3 text-sm text-ink-soft">
                   {row.acceptedCount}/{row.itemCount} accepted · {row.reviewCount}{" "}
                   to review · {row.outstandingCount} still needed
+                  {row.factFindDraftCount + row.factFindConfirmedCount > 0
+                    ? ` · fact-find ${row.factFindConfirmedCount} confirmed / ${row.factFindDraftCount} draft`
+                    : ""}
                 </p>
               </Link>
             </li>

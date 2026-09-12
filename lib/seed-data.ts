@@ -5,6 +5,7 @@ import { DEMO_BROKER, DEMO_CASES } from "./demo";
 import { buildStoredRelativePath } from "./pack";
 import { UPLOAD_DIR } from "./paths";
 import { samplePdfBytes } from "./sample-pdf";
+import { syncFactFindOnDb } from "./fact-find";
 import { getScenario } from "./scenarios";
 import type {
   CaseRecord,
@@ -129,14 +130,11 @@ export function ensureSeeded(db: Database): Database {
     purchase.id,
     "purchase",
     {
-      photo_id: "needs_review",
-      payslips: "uploaded",
+      photo_id: "accepted",
+      payslips: "accepted",
       bank_statements: "accepted",
-      secondary_id: "rejected_resubmit",
-    },
-    {
-      secondary_id:
-        "This looks like an expired licence. Please upload a current colour copy, all four corners visible.",
+      secondary_id: "accepted",
+      existing_debts: "accepted",
     },
   );
 
@@ -155,8 +153,8 @@ export function ensureSeeded(db: Database): Database {
 
   db.items = [...purchaseItems, ...refinanceItems];
   db.files = [
-    fileFor(purchase, "photo_id", "SAMPLE Photo ID — Priya Nair", "needs_review"),
-    fileFor(purchase, "payslips", "SAMPLE Payslips — Priya Nair", "uploaded"),
+    fileFor(purchase, "photo_id", "SAMPLE Photo ID — Priya Nair", "accepted"),
+    fileFor(purchase, "payslips", "SAMPLE Payslips — Priya Nair", "accepted"),
     fileFor(
       purchase,
       "bank_statements",
@@ -166,8 +164,14 @@ export function ensureSeeded(db: Database): Database {
     fileFor(
       purchase,
       "secondary_id",
-      "SAMPLE Secondary ID — Priya Nair (expired licence)",
-      "rejected_resubmit",
+      "SAMPLE Secondary ID — Priya Nair (Medicare)",
+      "accepted",
+    ),
+    fileFor(
+      purchase,
+      "existing_debts",
+      "SAMPLE Credit card statement — Priya Nair",
+      "accepted",
     ),
     fileFor(
       refinance,
@@ -177,6 +181,9 @@ export function ensureSeeded(db: Database): Database {
     ),
   ];
   db.reminders = [];
+  db.factFinds = [];
+  syncFactFindOnDb(db, purchase, purchaseItems, db.files);
+  syncFactFindOnDb(db, refinance, refinanceItems, db.files);
   return db;
 }
 
@@ -187,5 +194,6 @@ export function resetDemoData(): Database {
     items: [],
     files: [],
     reminders: [],
+    factFinds: [],
   });
 }
