@@ -3,7 +3,7 @@ import { newId, nowIso } from "@/lib/crypto";
 import { saveUpload } from "@/lib/files";
 import { getCaseByToken } from "@/lib/queries";
 import { statusAfterClientUpload } from "@/lib/status";
-import { updateDb } from "@/lib/store";
+import { loadDb, updateDb } from "@/lib/store";
 
 export const runtime = "nodejs";
 
@@ -28,32 +28,57 @@ export async function POST(request: Request) {
     );
   }
 
+  const item = loadDb().items.find(
+    (row) => row.id === itemId && row.caseId === caseRecord.id,
+  );
+  if (!item) {
+    return NextResponse.json(
+      { error: "That checklist item was not found." },
+      { status: 400 },
+    );
+  }
+  const nextStatus = statusAfterClientUpload(item.status);
+  if (!nextStatus) {
+    return NextResponse.json(
+      {
+        error:
+          "This item cannot be uploaded right now. If it is already in review, wait for your broker.",
+      },
+      { status: 400 },
+    );
+  }
+
   try {
-    const saved = await saveUpload(file);
+    const uploadedAt = nowIso();
+    const saved = await saveUpload(file, {
+      caseId: caseRecord.id,
+      docType: item.itemKey,
+      clientLabel: caseRecord.clientLabel,
+      status: nextStatus,
+      uploadedAt,
+    });
     const result = updateDb((db) => {
-      const item = db.items.find(
+      const target = db.items.find(
         (row) => row.id === itemId && row.caseId === caseRecord.id,
       );
-      if (!item) return { error: "That checklist item was not found." };
-      const nextStatus = statusAfterClientUpload(item.status);
-      if (!nextStatus) {
+      if (!target) return { error: "That checklist item was not found." };
+      if (!statusAfterClientUpload(target.status)) {
         return {
           error:
             "This item cannot be uploaded right now. If it is already in review, wait for your broker.",
         };
       }
-      const uploadedAt = nowIso();
       db.files.push({
         id: newId(),
-        itemId: item.id,
+        itemId: target.id,
         originalName: file.name,
         storedName: saved.storedName,
         mimeType: saved.mimeType,
         sizeBytes: saved.sizeBytes,
         uploadedAt,
       });
-      item.status = nextStatus;
-      item.updatedAt = uploadedAt;
+      target.status = nextStatus;
+      target.updatedAt = uploadedAt;
       return { ok: true };
     });
 

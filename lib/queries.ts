@@ -108,7 +108,7 @@ export function listReminders(brokerId: string): Array<
 
 export function findFile(
   fileId: string,
-): { file: StoredFile; caseRecord: CaseRecord } | null {
+): { file: StoredFile; item: ChecklistItem; caseRecord: CaseRecord } | null {
   const db = loadDb();
   const file = db.files.find((row) => row.id === fileId);
   if (!file) return null;
@@ -116,5 +116,10 @@ export function findFile(
   if (!item) return null;
   const caseRecord = db.cases.find((row) => row.id === item.caseId);
   if (!caseRecord) return null;
-  return { file, caseRecord };
+  return { file, item, caseRecord };
+}
+
+export function filesForCase(caseId: string): StoredFile[] {
+  const itemIds = new Set(itemsForCase(caseId).map((item) => item.id));
+  return loadDb().files.filter((file) => itemIds.has(file.itemId));
 }

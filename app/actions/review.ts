@@ -3,8 +3,38 @@
 import { revalidatePath } from "next/cache";
 import { requireBroker } from "@/lib/auth";
 import { nowIso } from "@/lib/crypto";
+import { relocateStoredFile } from "@/lib/files";
 import { canBrokerReview } from "@/lib/status";
 import { loadDb, updateDb } from "@/lib/store";
+import type { ChecklistItem, ItemStatus, StoredFile } from "@/lib/types";
+
+function relocateLatestFile(
+  files: StoredFile[],
+  item: ChecklistItem,
+  caseId: string,
+  clientLabel: string,
+  status: ItemStatus,
+) {
+  const latest = files
+    .filter((file) => file.itemId === item.id)
+    .sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt))[0];
+  if (!latest) return;
+  try {
+    latest.storedName = relocateStoredFile(
+      latest.storedName,
+      {
+        caseId,
+        docType: item.itemKey,
+        clientLabel,
+        status,
+        uploadedAt: latest.uploadedAt,
+      },
+      latest.originalName,
+    );
+  } catch {
+    // Keep the previous path if the rename fails — review still stands.
+  }
+}
 
 export async function reviewItemAction(
   _prev: { error: string } | null,
@@ -42,6 +72,13 @@ export async function reviewItemAction(
     target.brokerNote = note;
     target.reviewedAt = updatedAt;
     target.updatedAt = updatedAt;
+    relocateLatestFile(
+      next.files,
+      target,
+      caseRecord.id,
+      caseRecord.clientLabel,
+      decision,
+    );
   });
 
   revalidatePath("/broker");
@@ -66,6 +103,13 @@ export async function markNeedsReviewAction(itemId: string) {
     if (!target || target.status !== "uploaded") return;
     target.status = "needs_review";
     target.updatedAt = nowIso();
+    relocateLatestFile(
+      next.files,
+      target,
+      caseRecord.id,
+      caseRecord.clientLabel,
+      "needs_review",
+    );
   });
 
   revalidatePath("/broker/queue");

@@ -1,9 +1,21 @@
-import { createWriteStream, existsSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
+import {
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  renameSync,
+} from "node:fs";
+import { dirname, join, resolve, sep } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
-import { newId } from "./crypto";
+import {
+  buildStoredRelativePath,
+  extensionOf,
+  packedFilename,
+  uniqueName,
+  type PackedNameInput,
+} from "./pack";
 import { UPLOAD_DIR } from "./paths";
+import type { ItemStatus } from "./types";
 
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
@@ -26,11 +38,7 @@ const ALLOWED_EXT = new Set([
   ".heif",
 ]);
 
-export function extensionOf(name: string): string {
-  const idx = name.lastIndexOf(".");
-  if (idx < 0) return "";
-  return name.slice(idx).toLowerCase();
-}
+export { extensionOf } from "./pack";
 
 export function isAllowedUpload(name: string, mimeType: string): boolean {
   const ext = extensionOf(name);
@@ -41,7 +49,76 @@ export function isAllowedUpload(name: string, mimeType: string): boolean {
   return ALLOWED_MIME.has(mimeType);
 }
 
-export async function saveUpload(file: File): Promise<{
+export type SaveUploadMeta = {
+  caseId: string;
+  docType: string;
+  clientLabel: string;
+  status: ItemStatus;
+  uploadedAt?: string;
+};
+
+function nameInput(meta: SaveUploadMeta): PackedNameInput {
+  return {
+    caseId: meta.caseId,
+    docType: meta.docType,
+    clientLabel: meta.clientLabel,
+    status: meta.status,
+    uploadedAt: meta.uploadedAt ?? new Date().toISOString(),
+  };
+}
+
+export function resolveUploadPath(storedName: string): string | null {
+  if (!storedName || storedName.includes("\0") || storedName.includes("\\")) {
+    return null;
+  }
+  const parts = storedName.split("/");
+  if (
+    parts.length === 0 ||
+    parts.some((part) => part === "" || part === "." || part === "..")
+  ) {
+    return null;
+  }
+  const root = resolve(UPLOAD_DIR);
+  const full = resolve(root, ...parts);
+  if (full !== root && !full.startsWith(root + sep)) {
+    return null;
+  }
+  return full;
+}
+
+export function uploadPath(storedName: string): string | null {
+  const full = resolveUploadPath(storedName);
+  if (!full || !existsSync(full)) return null;
+  return full;
+}
+
+function allocateRelativePath(preferred: string): string {
+  const taken = new Set<string>();
+  let candidate = preferred;
+  while (existsSync(join(UPLOAD_DIR, candidate))) {
+    taken.add(candidate);
+    candidate = uniqueName(preferred, taken);
+  }
+  return candidate;
+}
+
+export function plannedStoredName(meta: SaveUploadMeta, originalName: string): string {
+  return allocateRelativePath(
+    buildStoredRelativePath(nameInput(meta), extensionOf(originalName) || ".bin"),
+  );
+}
+
+export function packedDownloadName(
+  meta: SaveUploadMeta,
+  originalName: string,
+): string {
+  return packedFilename(nameInput(meta), extensionOf(originalName) || ".bin");
+}
+
+export async function saveUpload(
+  file: File,
+  meta: SaveUploadMeta,
+): Promise<{
   storedName: string;
   sizeBytes: number;
   mimeType: string;
@@ -56,8 +133,12 @@ export async function saveUpload(file: File): Promise<{
   }
 
   mkdirSync(UPLOAD_DIR, { recursive: true });
-  const storedName = `${newId()}${extensionOf(file.name) || ".bin"}`;
-  const target = join(process.cwd(), "data", "uploads", storedName);
+  const storedName = plannedStoredName(meta, file.name);
+  const target = resolveUploadPath(storedName);
+  if (!target) {
+    throw new Error("Could not store that file.");
+  }
+  mkdirSync(dirname(target), { recursive: true });
   const readable = Readable.fromWeb(
     file.stream() as unknown as import("node:stream/web").ReadableStream,
   );
@@ -69,11 +150,22 @@ export async function saveUpload(file: File): Promise<{
   };
 }
 
-export function uploadPath(storedName: string): string | null {
-  if (!storedName || storedName.includes("/") || storedName.includes("\\")) {
-    return null;
-  }
-  const full = join(process.cwd(), "data", "uploads", storedName);
-  if (!existsSync(full)) return null;
-  return full;
+export function relocateStoredFile(
+  storedName: string,
+  meta: SaveUploadMeta,
+  originalName: string,
+): string {
+  const from = uploadPath(storedName);
+  if (!from) return storedName;
+  const preferred = buildStoredRelativePath(
+    nameInput(meta),
+    extensionOf(storedName) || extensionOf(originalName) || ".bin",
+  );
+  if (preferred === storedName) return storedName;
+  const nextName = allocateRelativePath(preferred);
+  const target = resolveUploadPath(nextName);
+  if (!target) return storedName;
+  mkdirSync(dirname(target), { recursive: true });
+  renameSync(from, target);
+  return nextName;
 }
