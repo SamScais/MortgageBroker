@@ -13,7 +13,7 @@ Local MVP: a broker creates a client case, shares **one unique upload link**, an
 5. Overdue files are flagged automatically. **Send reminder** writes to a **DEMO email log** (nothing is sent to a real inbox).
 6. Use the review queue to open a case, view the file, accept it, or request a resubmit with a short note.
 7. On the case page, **Download** a single file, or **Download zip (accepted)** to pack only accepted documents (rejected / needs-resubmit / empty items are left out). There is also an optional **Download zip (all uploaded)**.
-8. Open the **Fact find** tab. Accepted documents produce a **draft PAYG fact-find**. Every field starts as draft — **Confirm / Edit / Clear** before it sticks. Nothing is lodged.
+8. Open the **Fact find** tab. Accepted documents produce a **draft PAYG fact-find**. Every field starts as draft — **Confirm / Edit / Clear** each one, or **Confirm group / Confirm all** after you have checked the drafts. Nothing is lodged.
 9. After confirming fields, **Download CSV** or **Download JSON** of confirmed values only, or **Download handoff pack** (confirmed export + accepted documents). Draft and cleared fields are left out.
 
 Out of scope: CRM, lender integrations, loan calculations, bank APIs, billing, live email, public production hosting, custom domains, Firebase, Drive/SharePoint sync, self-employed tax/NOA extraction, live Open Banking, Quickli lodge, and ApplyOnline lodge. A **private Vercel preview** of this review build is supported (see below). The confirmed export is a **handoff aid** so you can paste or map into Quickli / FLEX — it does not replace those tools and does not lodge anything.
@@ -72,15 +72,16 @@ Priya has **accepted** SAMPLE photo ID, payslips, 90-day bank statements, Medica
 3. On the case page you should see **PAYG fact-find (draft)** with draft field counts. Choose **Fact find** (or **Open fact-find**).
 4. Fields are grouped by source (photo ID, payslips, bank statements, spotted liabilities, living expenses, liability documents, secondary ID). Each row has a **Draft** badge and a source hint.
 5. **Confirm** a field — the badge becomes **Confirmed** and the value persists after refresh (locally in `data/db.json`; on Vercel preview in a signed cookie — see storage below).
-6. **Edit** a field, change the value, **Save as confirmed**.
-7. **Clear** a field — it is stored as cleared and will not be used. Confirm again to restore the SAMPLE draft.
-8. Open **SAMPLE Client — Tom Brennan** → **Fact find**. There are no accepted documents, so there are no draft fields.
+6. To skip 37 per-field clicks: **Confirm group** on a section (Photo ID, Payslips, Banks, Liabilities, Secondary ID, …) or **Confirm all drafts**. Both ask you to tick **I have checked these draft values** first. Cleared fields stay cleared. This never auto-lodges.
+7. **Edit** a field, change the value, **Save as confirmed**.
+8. **Clear** a field — it is stored as cleared and will not be used. Confirm again to restore the SAMPLE draft.
+9. Open **SAMPLE Client — Tom Brennan** → **Fact find**. There are no accepted documents, so there are no draft fields.
 
 Extraction is deterministic SAMPLE/FAKE data (not live OCR). The field model is structured so a real OCR pipeline could plug in later. Living-expense rows are marked **declared vs HEM later**. This app never auto-lodges.
 
 ## Try the confirmed export / handoff pack
 
-1. On Priya’s **Fact find**, confirm a few fields (for example full name and employer). Leave others as draft, or clear one.
+1. On Priya’s **Fact find**, confirm a few fields (for example full name and employer), or use **Confirm group** / **Confirm all** after ticking the check. Leave others as draft, or clear one.
 2. Use **Download CSV** or **Download JSON**. Filenames are `SAMPLE-{client}-confirmed-fact-find-{date}.csv` / `.json`. Header comments and the JSON `notice` say SAMPLE / FAKE, handoff aid only, not lodged.
 3. Open the file — **one row per confirmed field**, with `sourceDocType`, `confirmedAt`, and `SAMPLE=true`. Draft and cleared values stay out.
 4. **Download accepted zip** still packs accepted documents only (alongside the confirmed export).
@@ -95,7 +96,7 @@ This is a handoff aid, not a CRM replacement. Nothing is lodged to Quickli, FLEX
 
 ## Quickli / FLEX-ish field mapping (PAYG)
 
-Approximate labels for handoff — **not a certified LIXI / ApplyOnline schema**. Export **confirmed fields only**. Mark **SAMPLE / FAKE**. Confirm-all, serviceability, Illion and ApplyOnline lodge stay out of scope.
+Approximate labels for handoff — **not a certified LIXI / ApplyOnline schema**. Export **confirmed fields only**. Mark **SAMPLE / FAKE**. Serviceability, Illion and ApplyOnline lodge stay out of scope.
 
 Stored keys on the fact-find (e.g. `photo_id.full_name`) map to the concept keys below.
 
@@ -215,4 +216,4 @@ There is no cloud bucket, no production auth provider, and no live email. The re
 npm test
 ```
 
-Covers sample-name labelling, status transitions, overdue rules, AU checklist coverage, demo reminder wording, packed filenames, accepted-only zip filtering, PAYG fact-find draft → confirm / edit / clear (accepted documents only), confirmed-only CSV/JSON export and handoff pack, Quickli/FLEX field mapping coverage, signed fact-find overlay persistence across ephemeral preview instances, and Vercel preview path / seed behaviour.
+Covers sample-name labelling, status transitions, overdue rules, AU checklist coverage, demo reminder wording, packed filenames, accepted-only zip filtering, PAYG fact-find draft → confirm / edit / clear (accepted documents only), confirm-all / confirm-group of visible drafts (acknowledgement required; cleared stays cleared), confirmed-only CSV/JSON export and handoff pack, Quickli/FLEX field mapping coverage, signed fact-find overlay persistence across ephemeral preview instances, and Vercel preview path / seed behaviour.

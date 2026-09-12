@@ -1,8 +1,10 @@
 import { nowIso } from "./crypto";
 import { extractDraftFields } from "./fact-find-extract";
 import {
+  applyDraftConfirmsToRecord,
   applyFieldActionToRecord,
   mergeExtractedFields,
+  type BulkConfirmFilter,
   type FactFindFieldAction,
 } from "./fact-find-state";
 import type {
@@ -57,4 +59,22 @@ export function applyStoredFieldAction(
   const next = applyFieldActionToRecord(current, fieldKey, action, nextValue, nowIso());
   db.factFinds[index] = next;
   return next;
+}
+
+export function applyStoredDraftConfirms(
+  db: Database,
+  caseId: string,
+  filter?: BulkConfirmFilter,
+): { record: FactFindRecord; confirmedCount: number } | null {
+  const index = db.factFinds.findIndex((row) => row.caseId === caseId);
+  if (index < 0) return null;
+  const current = db.factFinds[index];
+  if (!current) return null;
+  const { record, confirmedKeys } = applyDraftConfirmsToRecord(
+    current,
+    filter,
+    nowIso(),
+  );
+  db.factFinds[index] = record;
+  return { record, confirmedCount: confirmedKeys.length };
 }

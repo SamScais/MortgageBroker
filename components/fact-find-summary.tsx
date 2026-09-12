@@ -19,9 +19,9 @@ export function FactFindSummary({
       <h2 className="text-lg text-ink">PAYG fact-find (draft)</h2>
       <p className="text-sm text-ink-soft">
         SAMPLE extraction from <strong>accepted</strong> documents only. Every
-        field starts as a draft. Confirm, edit or clear before it sticks.
-        Confirmed fields can be exported as CSV or JSON. Nothing is lodged to a
-        lender.
+        field starts as a draft. Confirm, edit or clear each one — or confirm a
+        group / all visible drafts after you have checked them. Confirmed fields
+        can be exported as CSV or JSON. Nothing is lodged to a lender.
       </p>
       {acceptedCount === 0 ? (
         <p className="rounded-md bg-muted px-3 py-2 text-sm">
