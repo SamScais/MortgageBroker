@@ -48,6 +48,7 @@ function fieldFromSpec(
     sourceItemTitle: item.title,
     sourceFileId: file?.id ?? null,
     hint: spec.hint ?? `From accepted: ${item.title}`,
+    confirmedAt: null,
   };
 }
 

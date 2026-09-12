@@ -8,8 +8,8 @@ export function SampleBanner({ children }: { children?: React.ReactNode }) {
           <strong>SAMPLE / FAKE demo.</strong> Not real client information and
           not financial advice.{" "}
           {ephemeral
-            ? "Private preview: SAMPLE data is seeded into a temporary folder. Uploads may not persist across instances."
-            : "Files stay on this machine."}
+            ? "Private preview: uploads and review actions may not persist across serverless instances. Confirmed fact-find fields are kept in a signed browser cookie so Confirm → Export still works."
+            : "Files stay on this machine. Confirmed fact-find fields are stored in the local database."}
         </>
       )}
     </div>

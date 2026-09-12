@@ -4,12 +4,14 @@ import { markNeedsReviewAction } from "@/app/actions/review";
 import { CaseSectionNav } from "@/components/case-section-nav";
 import { CopyButton } from "@/components/copy-button";
 import { DownloadLink } from "@/components/download-link";
+import { FactFindHandoff } from "@/components/fact-find-handoff";
 import { FactFindSummary } from "@/components/fact-find-summary";
 import { ReminderButton } from "@/components/reminder-button";
 import { ReviewForm } from "@/components/review-form";
 import { SampleBanner } from "@/components/sample-banner";
 import { StatusBadge } from "@/components/status-badge";
 import { requireBroker } from "@/lib/auth";
+import { usingFactFindOverlay } from "@/lib/fact-find-cookie";
 import { formatBytes, formatDate, formatDateTime } from "@/lib/format";
 import { extensionOf, packedFilename } from "@/lib/pack";
 import {
@@ -30,12 +32,18 @@ export default async function CaseDetailPage({
 }) {
   const session = await requireBroker();
   const { id } = await params;
-  const caseRecord = getCaseForBroker(session.brokerId, id);
+  const { caseRecord, items, uploadedCount, factFind } = await usingFactFindOverlay(
+    () => {
+      const currentCase = getCaseForBroker(session.brokerId, id);
+      return {
+        caseRecord: currentCase,
+        items: currentCase ? itemsForCase(currentCase.id) : [],
+        uploadedCount: currentCase ? filesForCase(currentCase.id).length : 0,
+        factFind: currentCase ? factFindForCase(currentCase.id) : undefined,
+      };
+    },
+  );
   if (!caseRecord) notFound();
-
-  const items = itemsForCase(caseRecord.id);
-  const uploadedCount = filesForCase(caseRecord.id).length;
-  const factFind = factFindForCase(caseRecord.id);
 
   return (
     <div className="space-y-6">
@@ -57,6 +65,11 @@ export default async function CaseDetailPage({
       <FactFindSummary
         caseId={caseRecord.id}
         factFind={factFind}
+        acceptedCount={caseRecord.acceptedCount}
+      />
+      <FactFindHandoff
+        caseId={caseRecord.id}
+        confirmedCount={caseRecord.factFindConfirmedCount}
         acceptedCount={caseRecord.acceptedCount}
       />
 

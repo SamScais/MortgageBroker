@@ -91,3 +91,22 @@ export function listZipEntryNames(zip: Buffer): string[] {
   }
   return names;
 }
+
+export function readZipEntry(zip: Buffer, name: string): Buffer | null {
+  let offset = 0;
+  while (offset + 30 <= zip.length) {
+    if (zip.readUInt32LE(offset) !== 0x04034b50) break;
+    const compressedSize = zip.readUInt32LE(offset + 18);
+    const nameLength = zip.readUInt16LE(offset + 26);
+    const extraLength = zip.readUInt16LE(offset + 28);
+    const entryName = zip
+      .subarray(offset + 30, offset + 30 + nameLength)
+      .toString("utf8");
+    const dataStart = offset + 30 + nameLength + extraLength;
+    if (entryName === name) {
+      return zip.subarray(dataStart, dataStart + compressedSize);
+    }
+    offset = dataStart + compressedSize;
+  }
+  return null;
+}

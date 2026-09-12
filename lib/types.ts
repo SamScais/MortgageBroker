@@ -114,6 +114,7 @@ export type FactFindField = {
   sourceItemTitle: string;
   sourceFileId: string | null;
   hint: string;
+  confirmedAt?: string | null;
 };
 
 export type FactFindRecord = {

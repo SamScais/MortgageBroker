@@ -1,5 +1,9 @@
 import { dirname } from "node:path";
 import { isProductionBuild } from "./build-phase";
+import {
+  applyOverlayToDb,
+  requestFactFindOverlay,
+} from "./fact-find-overlay";
 import { dataDir, dbPath } from "./paths";
 import {
   fileExists,
@@ -32,7 +36,7 @@ export function loadDb(): Database {
   if (!fileExists(path)) {
     const seeded = ensureSeeded(emptyDb());
     saveDb(seeded);
-    return seeded;
+    return applyOverlayToDb(seeded, requestFactFindOverlay());
   }
 
   const parsed = JSON.parse(readUtf8(path)) as Database;
@@ -48,9 +52,9 @@ export function loadDb(): Database {
   if (db.brokers.length === 0) {
     const seeded = ensureSeeded(db);
     saveDb(seeded);
-    return seeded;
+    return applyOverlayToDb(seeded, requestFactFindOverlay());
   }
-  return db;
+  return applyOverlayToDb(db, requestFactFindOverlay());
 }
 
 export function saveDb(db: Database): void {
