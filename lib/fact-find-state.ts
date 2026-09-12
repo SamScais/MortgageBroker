@@ -1,4 +1,10 @@
-import type { FactFindField, FactFindFieldState, FactFindRecord } from "./types";
+import {
+  FACT_FIND_GROUPS,
+  type FactFindField,
+  type FactFindFieldState,
+  type FactFindGroupId,
+  type FactFindRecord,
+} from "./types";
 
 export const FIELD_STATE_LABELS: Record<FactFindFieldState, string> = {
   draft: "Draft",
@@ -65,6 +71,90 @@ export function applyFieldActionToRecord(
         ? applyFieldAction(field, action, nextValue, updatedAt)
         : field,
     ),
+  };
+}
+
+export type BulkConfirmScope = "all" | "group";
+
+export type BulkConfirmFilter = {
+  group?: FactFindGroupId;
+};
+
+export function isFactFindGroupId(value: string): value is FactFindGroupId {
+  return (FACT_FIND_GROUPS as readonly string[]).includes(value);
+}
+
+/** Draft fields currently on the fact-find. Cleared and confirmed stay out. */
+export function confirmableDrafts(
+  fields: FactFindField[],
+  filter?: BulkConfirmFilter,
+): FactFindField[] {
+  return fields.filter(
+    (field) =>
+      field.state === "draft" &&
+      (filter?.group == null || field.group === filter.group),
+  );
+}
+
+export function applyDraftConfirmsToRecord(
+  record: FactFindRecord,
+  filter?: BulkConfirmFilter,
+  updatedAt = new Date().toISOString(),
+): { record: FactFindRecord; confirmedKeys: string[] } {
+  const keys = new Set(confirmableDrafts(record.fields, filter).map((field) => field.key));
+  if (keys.size === 0) {
+    return { record, confirmedKeys: [] };
+  }
+  return {
+    record: {
+      ...record,
+      updatedAt,
+      fields: record.fields.map((field) =>
+        keys.has(field.key)
+          ? applyFieldAction(field, "confirm", undefined, updatedAt)
+          : field,
+      ),
+    },
+    confirmedKeys: [...keys],
+  };
+}
+
+export type ParsedBulkConfirm =
+  | {
+      ok: true;
+      caseId: string;
+      scope: BulkConfirmScope;
+      group?: FactFindGroupId;
+    }
+  | { ok: false; error: string };
+
+export function parseBulkConfirmForm(formData: FormData): ParsedBulkConfirm {
+  const caseId = String(formData.get("caseId") ?? "").trim();
+  const scope = String(formData.get("scope") ?? "").trim();
+  const group = String(formData.get("group") ?? "").trim();
+  const acknowledged =
+    formData.get("acknowledged") === "1" || formData.get("acknowledged") === "on";
+
+  if (!caseId) {
+    return { ok: false, error: "Missing case." };
+  }
+  if (scope !== "all" && scope !== "group") {
+    return { ok: false, error: "Choose confirm all or confirm group." };
+  }
+  if (scope === "group" && !isFactFindGroupId(group)) {
+    return { ok: false, error: "Choose a fact-find group." };
+  }
+  if (!acknowledged) {
+    return {
+      ok: false,
+      error: "Tick “I have checked these draft values” before confirming.",
+    };
+  }
+  return {
+    ok: true,
+    caseId,
+    scope,
+    ...(scope === "group" && isFactFindGroupId(group) ? { group } : {}),
   };
 }
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CaseSectionNav } from "@/components/case-section-nav";
+import { FactFindBulkConfirm } from "@/components/fact-find-bulk-confirm";
 import { FactFindFieldRow } from "@/components/fact-find-field-row";
 import { FactFindHandoff } from "@/components/fact-find-handoff";
 import { SampleBanner } from "@/components/sample-banner";
@@ -8,7 +9,7 @@ import { requireBroker } from "@/lib/auth";
 import { usingFactFindOverlay } from "@/lib/fact-find-cookie";
 import { FACT_FIND_GROUP_LABELS, FACT_FIND_SOURCE_LABELS, isFactFindSourceKey } from "@/lib/fact-find-schema";
 import { syncFactFindOnDb } from "@/lib/fact-find";
-import { countFieldStates } from "@/lib/fact-find-state";
+import { confirmableDrafts, countFieldStates } from "@/lib/fact-find-state";
 import { formatDate } from "@/lib/format";
 import { getCaseForBroker, itemsForCase } from "@/lib/queries";
 import { updateDb } from "@/lib/store";
@@ -75,11 +76,13 @@ export default async function FactFindPage({
         live OCR, not Open Banking, and not lodged to ApplyOnline or any lender.
       </SampleBanner>
 
-      <section className="space-y-2 rounded-xl border border-line bg-panel p-4">
+      <section className="space-y-3 rounded-xl border border-line bg-panel p-4">
         <h2 className="text-lg text-ink">Broker confirm every field</h2>
         <p className="text-sm text-ink-soft">
-          Fields are drafted only from accepted documents. Confirm, edit or clear
-          each one. Confirmed values persist after refresh — locally in{" "}
+          Fields are drafted only from accepted documents. Confirm, edit or
+          clear each one, or confirm a group / all visible drafts after you have
+          checked them. Cleared fields stay cleared. Confirmed values persist
+          after refresh — locally in{" "}
           <code className="rounded bg-muted px-1">data/db.json</code>, and on
           the Vercel preview in a signed browser cookie (the temp database is
           per-instance). This app never auto-lodges.
@@ -88,6 +91,14 @@ export default async function FactFindPage({
           {counts.draft} draft · {counts.confirmed} confirmed · {counts.cleared}{" "}
           cleared
         </p>
+        <FactFindBulkConfirm
+          caseId={caseRecord.id}
+          scope="all"
+          drafts={confirmableDrafts(factFind?.fields ?? []).map((field) => ({
+            key: field.key,
+            label: field.label,
+          }))}
+        />
       </section>
 
       <FactFindHandoff
@@ -122,15 +133,27 @@ export default async function FactFindPage({
           const fields = factFind.fields.filter((field) => field.group === group);
           if (fields.length === 0) return null;
           const sourceTitle = fields[0]?.sourceItemTitle;
+          const groupDrafts = confirmableDrafts(fields, { group });
           return (
             <section key={group} className="space-y-3">
-              <div>
-                <h2 className="text-lg text-ink">{FACT_FIND_GROUP_LABELS[group]}</h2>
-                {sourceTitle ? (
-                  <p className="text-sm text-ink-soft">
-                    Source: accepted {sourceTitle}
-                  </p>
-                ) : null}
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="text-lg text-ink">{FACT_FIND_GROUP_LABELS[group]}</h2>
+                  {sourceTitle ? (
+                    <p className="text-sm text-ink-soft">
+                      Source: accepted {sourceTitle}
+                    </p>
+                  ) : null}
+                </div>
+                <FactFindBulkConfirm
+                  caseId={caseRecord.id}
+                  scope="group"
+                  group={group}
+                  drafts={groupDrafts.map((field) => ({
+                    key: field.key,
+                    label: field.label,
+                  }))}
+                />
               </div>
               <ul className="space-y-2">
                 {fields.map((field) => (
