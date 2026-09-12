@@ -82,44 +82,50 @@ Extraction is deterministic SAMPLE/FAKE data (not live OCR). The field model is 
 
 1. On Priya’s **Fact find**, confirm a few fields (for example full name and employer). Leave others as draft, or clear one.
 2. Use **Download CSV** or **Download JSON**. Filenames are `SAMPLE-{client}-confirmed-fact-find-{date}.csv` / `.json`. Header comments and the JSON `notice` say SAMPLE / FAKE, handoff aid only, not lodged.
-3. Open the file — only **Confirmed** rows should appear. Draft and cleared values stay out.
-4. **Download accepted zip** still packs accepted documents only.
+3. Open the file — **one row per confirmed field**, with `sourceDocType`, `confirmedAt`, and `SAMPLE=true`. Draft and cleared values stay out.
+4. **Download accepted zip** still packs accepted documents only (alongside the confirmed export).
 5. **Download handoff pack** builds `SAMPLE-{client}-handoff-{date}.zip` with a SAMPLE/FAKE notice, the confirmed CSV + JSON, and the accepted documents folder.
 6. Tom has no confirmed fields, so CSV / JSON / handoff are not offered until something is confirmed.
 
 This is a handoff aid, not a CRM replacement. Nothing is lodged to Quickli, FLEX, ApplyOnline or any lender.
 
+**Export tip:** one row per confirmed field. Each row includes `sourceDocType`, `confirmedAt`, and `SAMPLE=true`. Draft and cleared fields stay out. The accepted-documents zip stays **accepted-only** alongside (rejected / needs-resubmit / empty items are left out).
+
 ## Quickli / FLEX-ish field mapping (PAYG)
 
-Use this table when pasting confirmed values into a servicing calculator or broker CRM. Names are **indicative** (Quickli-ish / FLEX-ish), not a live integration. Confirm-all, serviceability, Illion and ApplyOnline lodge stay out of scope.
+Approximate labels for handoff — **not a certified LIXI / ApplyOnline schema**. Export **confirmed fields only**. Mark **SAMPLE / FAKE**. Confirm-all, serviceability, Illion and ApplyOnline lodge stay out of scope.
 
-| Group | Field | Quickli-ish | FLEX-ish | Notes |
-| ----- | ----- | ----------- | -------- | ----- |
-| Photo identification | Full name | Applicant — full name | Applicant / contact name | Match to the application. |
-| Photo identification | Date of birth | Applicant — date of birth | Date of birth | Use the photo-ID date. |
-| Photo identification | Residential address | Applicant — residential address | Current residential address | Confirm against the licence. |
-| Photo identification | Document type | Identification — document type | Primary ID type | e.g. NSW driver licence. |
-| Photo identification | Document number | Identification — document number | Primary ID number | Often masked in this SAMPLE demo. |
-| Photo identification | Expiry | Identification — expiry | Primary ID expiry | Reject expired ID first. |
-| Payslips | Employer name | PAYG employment — employer | Employer name | Latest accepted slips. |
-| Payslips | Job title | PAYG employment — occupation | Occupation / job title | |
-| Payslips | Employment basis | PAYG employment — type (full-time / part-time / casual) | Employment status | Affects income treatment. |
-| Payslips | Employment start date | PAYG employment — start date | Employment commenced | |
-| Payslips | Gross base pay | PAYG base income (per pay) — annualise in Quickli | Gross base income | Export is per-pay as on the slip. |
-| Payslips | Pay frequency | PAYG income — pay frequency | Income frequency | Weekly / fortnightly / monthly. |
-| Payslips | Year-to-date gross | YTD income (sense-check) | YTD income (notes) | Not always a calculator input. |
-| Payslips | Allowances / overtime | PAYG overtime / allowances (haircut in calculator) | Additional PAYG income | Flagged if present. |
-| Bank account | Institution | Asset — bank / institution | Asset institution | 90-day statements. |
-| Bank account | BSB / account | Asset — BSB / account number | Account BSB / number | Last-four in this SAMPLE demo. |
-| Bank account | Statement period | Statement period (notes) | Statement dates | Check the 90-day window. |
-| Bank account | Closing balance | Asset — account balance | Asset balance | |
-| Genuine savings | Genuine savings / deposit notes | Genuine savings / deposit notes | Deposit / genuine savings notes | Paste into notes. |
-| Spotted liabilities | Mortgage / credit card / personal loan / HECS-HELP payments | Matching liability repayment | Matching liability repayment | Credit cards usually need the **limit** for servicing. |
-| Living expenses | Groceries, rent, utilities, childcare, transport | Living expenses — category (declared vs HEM later) | Expense — category | Declared from statements. Compare to HEM later. |
-| Liability documents | Type, lender, limit, balance, repayment | Liability — type / lender / limit / balance / repayment | Liability type / creditor / limit / balance / repayment | From the accepted liability document. |
-| Secondary identification | Type, name match, number (optional), expiry | Secondary identification — type / notes / number / expiry | Secondary ID type / name match / number / expiry | Number is optional. |
+Stored keys on the fact-find (e.g. `photo_id.full_name`) map to the concept keys below.
 
-CSV and JSON exports include `quickli_hint` and `flex_hint` columns so you can map without leaving the file. Refinance current-loan statement fields use the same liability shape (`liability.current_loan_statement.*`).
+| Our draft key (concept) | FLEX-ish / CRM label | Quickli-ish note |
+| --- | --- | --- |
+| fullName | First Name + Last Name | Applicant name |
+| dateOfBirth | Date of Birth | DOB |
+| residentialAddress | Street / Suburb / State / Postcode | Residential address |
+| photoIdType / photoIdNumber / photoIdExpiry | (ID / VOI notes) | ID type, number, expiry |
+| secondaryIdType / secondaryIdNumber | (secondary ID) | e.g. Medicare |
+| employerName | Employer Business Name | Employer |
+| jobTitle | Job Title | Occupation |
+| employmentBasis | Employment Basis (FT/PT/casual) | Employment type |
+| employmentStartDate | Start Date | Start date |
+| grossBasePay | Gross Base Income | Base income |
+| payFrequency | Frequency | Pay frequency |
+| ytdGross | (YTD — often in notes) | YTD income |
+| allowancesOvertime | Additional Income Benefits | Allowances / OT |
+| bankInstitution | Financial Institution | Bank name |
+| bsbAccount | BSB + Account Number | BSB / account |
+| statementPeriod | (statement dates) | Period covered |
+| closingBalance | Estimated Value (savings/txn) | Account balance |
+| genuineSavingsNotes | (assets notes) | Deposit / genuine savings |
+| spottedLiabilityPayments | (feeds liabilities) | Recurring loan/CC/HECS hits |
+| livingExpense_* | Groceries, Telco, Childcare, etc. | Declared expenses (vs HEM later) |
+| liabilityType | Existing Mortgages / Credit Cards / … | Liability type |
+| liabilityLender | Lender / Credit Card Provider | Provider |
+| liabilityLimit | Current Limit | Limit |
+| liabilityBalance | Outstanding Balance | Balance |
+| liabilityRepayment | Repayment Amount | Repayment |
+
+CSV and JSON exports include these FLEX-ish / Quickli-ish labels on each confirmed row (`flex`, `quickli`, plus `concept`). Refinance current-loan statement fields use the same liability concepts (`liabilityType`, `liabilityLender`, …).
 
 ## Try the zip / download flow
 

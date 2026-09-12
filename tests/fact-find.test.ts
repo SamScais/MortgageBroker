@@ -108,9 +108,10 @@ test("self-employed tax documents are not extracted", () => {
 
 test("confirm, edit and clear change field state", () => {
   const draft = draftField();
-  const confirmed = applyFieldAction(draft, "confirm");
+  const confirmed = applyFieldAction(draft, "confirm", undefined, "2026-09-12T00:00:00.000Z");
   assert.equal(confirmed.state, "confirmed");
   assert.equal(confirmed.value, "SAMPLE Alex Demo");
+  assert.equal(confirmed.confirmedAt, "2026-09-12T00:00:00.000Z");
 
   const edited = applyFieldAction(draft, "edit", "SAMPLE Priya Nair-Jones");
   assert.equal(edited.state, "confirmed");
@@ -119,6 +120,7 @@ test("confirm, edit and clear change field state", () => {
   const cleared = applyFieldAction(confirmed, "clear");
   assert.equal(cleared.state, "cleared");
   assert.equal(cleared.value, "");
+  assert.equal(cleared.confirmedAt, null);
 
   const restored = applyFieldAction(cleared, "confirm");
   assert.equal(restored.state, "confirmed");

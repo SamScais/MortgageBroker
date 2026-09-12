@@ -12,12 +12,14 @@ export function applyFieldAction(
   field: FactFindField,
   action: FactFindFieldAction,
   nextValue?: string,
+  confirmedAt = new Date().toISOString(),
 ): FactFindField {
   if (action === "clear") {
     return {
       ...field,
       state: "cleared",
       value: "",
+      confirmedAt: null,
     };
   }
 
@@ -28,12 +30,14 @@ export function applyFieldAction(
         ...field,
         state: "cleared",
         value: "",
+        confirmedAt: null,
       };
     }
     return {
       ...field,
       state: "confirmed",
       value,
+      confirmedAt,
     };
   }
 
@@ -42,6 +46,7 @@ export function applyFieldAction(
     ...field,
     state: "confirmed",
     value: restored,
+    confirmedAt,
   };
 }
 
@@ -56,7 +61,9 @@ export function applyFieldActionToRecord(
     ...record,
     updatedAt,
     fields: record.fields.map((field) =>
-      field.key === fieldKey ? applyFieldAction(field, action, nextValue) : field,
+      field.key === fieldKey
+        ? applyFieldAction(field, action, nextValue, updatedAt)
+        : field,
     ),
   };
 }

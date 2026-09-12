@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import { DEMO_BROKER, DEMO_CASES } from "../lib/demo";
 import {
@@ -79,10 +81,17 @@ test("confirmed export keeps confirmed values and drops draft and cleared", () =
   assert.match(csv, /payslips\.employer_name/);
   assert.equal(csv.includes("photo_id.date_of_birth"), false);
   assert.equal(csv.includes("photo_id.doc_number"), false);
-  assert.match(csv, /Applicant — full name/);
-  assert.match(csv, /PAYG employment — employer/);
+  assert.match(csv, /SAMPLE,concept,key,label,value,sourceDocType,confirmedAt,flex,quickli/);
+  assert.match(csv, /true,fullName,photo_id\.full_name/);
+  assert.match(csv, /true,employerName,payslips\.employer_name/);
+  assert.match(csv, /First Name \+ Last Name/);
+  assert.match(csv, /Applicant name/);
+  assert.match(csv, /Employer Business Name/);
+  assert.match(csv, /photo_id,/);
+  assert.match(csv, /payslips,/);
 
   const parsed = JSON.parse(serializeConfirmedJson(fields, meta));
+  assert.equal(parsed.SAMPLE, true);
   assert.equal(parsed.sample, true);
   assert.equal(parsed.notLodged, true);
   assert.equal(parsed.handoffAidOnly, true);
@@ -91,7 +100,18 @@ test("confirmed export keeps confirmed values and drops draft and cleared", () =
     parsed.fields.map((row: { key: string }) => row.key),
     ["photo_id.full_name", "payslips.employer_name"],
   );
-  assert.ok(parsed.fields.every((row: { state: string }) => row.state === "confirmed"));
+  assert.ok(
+    parsed.fields.every(
+      (row: { SAMPLE: boolean; state: string; sourceDocType: string; confirmedAt: string }) =>
+        row.SAMPLE === true &&
+        row.state === "confirmed" &&
+        row.sourceDocType.length > 0 &&
+        row.confirmedAt.length > 0,
+    ),
+  );
+  assert.equal(parsed.fields[0].concept, "fullName");
+  assert.equal(parsed.fields[0].flex, "First Name + Last Name");
+  assert.equal(parsed.fields[0].quickli, "Applicant name");
 });
 
 test("empty confirmed set is not exported", () => {
@@ -139,7 +159,46 @@ test("every seeded PAYG field has a Quickli / FLEX mapping", () => {
       "Paste into the matching FLEX field",
       `missing FLEX map for ${row.key}`,
     );
+    assert.ok(mapping.concept, `missing concept for ${row.key}`);
   }
+  assert.equal(mappingForFieldKey("photo_id.full_name").flex, "First Name + Last Name");
+  assert.equal(mappingForFieldKey("photo_id.full_name").quickli, "Applicant name");
+  assert.equal(mappingForFieldKey("payslips.employer_name").flex, "Employer Business Name");
+  assert.equal(mappingForFieldKey("payslips.gross_base_pay").flex, "Gross Base Income");
+});
+
+test("README includes the locked Quickli / FLEX-ish field map", () => {
+  const readme = readFileSync(join(process.cwd(), "README.md"), "utf8");
+  assert.match(
+    readme,
+    /\| Our draft key \(concept\) \| FLEX-ish \/ CRM label \| Quickli-ish note \|/,
+  );
+  assert.match(readme, /\| fullName \| First Name \+ Last Name \| Applicant name \|/);
+  assert.match(readme, /\| dateOfBirth \| Date of Birth \| DOB \|/);
+  assert.match(readme, /\| residentialAddress \| Street \/ Suburb \/ State \/ Postcode \| Residential address \|/);
+  assert.match(readme, /\| photoIdType \/ photoIdNumber \/ photoIdExpiry \| \(ID \/ VOI notes\) \| ID type, number, expiry \|/);
+  assert.match(readme, /\| secondaryIdType \/ secondaryIdNumber \| \(secondary ID\) \| e.g. Medicare \|/);
+  assert.match(readme, /\| employerName \| Employer Business Name \| Employer \|/);
+  assert.match(readme, /\| jobTitle \| Job Title \| Occupation \|/);
+  assert.match(readme, /\| employmentBasis \| Employment Basis \(FT\/PT\/casual\) \| Employment type \|/);
+  assert.match(readme, /\| employmentStartDate \| Start Date \| Start date \|/);
+  assert.match(readme, /\| grossBasePay \| Gross Base Income \| Base income \|/);
+  assert.match(readme, /\| payFrequency \| Frequency \| Pay frequency \|/);
+  assert.match(readme, /\| ytdGross \| \(YTD — often in notes\) \| YTD income \|/);
+  assert.match(readme, /\| allowancesOvertime \| Additional Income Benefits \| Allowances \/ OT \|/);
+  assert.match(readme, /\| bankInstitution \| Financial Institution \| Bank name \|/);
+  assert.match(readme, /\| bsbAccount \| BSB \+ Account Number \| BSB \/ account \|/);
+  assert.match(readme, /\| statementPeriod \| \(statement dates\) \| Period covered \|/);
+  assert.match(readme, /\| closingBalance \| Estimated Value \(savings\/txn\) \| Account balance \|/);
+  assert.match(readme, /\| genuineSavingsNotes \| \(assets notes\) \| Deposit \/ genuine savings \|/);
+  assert.match(readme, /\| spottedLiabilityPayments \| \(feeds liabilities\) \| Recurring loan\/CC\/HECS hits \|/);
+  assert.match(readme, /\| livingExpense_\* \| Groceries, Telco, Childcare, etc. \| Declared expenses \(vs HEM later\) \|/);
+  assert.match(readme, /\| liabilityType \| Existing Mortgages \/ Credit Cards \/ … \| Liability type \|/);
+  assert.match(readme, /\| liabilityLender \| Lender \/ Credit Card Provider \| Provider \|/);
+  assert.match(readme, /\| liabilityLimit \| Current Limit \| Limit \|/);
+  assert.match(readme, /\| liabilityBalance \| Outstanding Balance \| Balance \|/);
+  assert.match(readme, /\| liabilityRepayment \| Repayment Amount \| Repayment \|/);
+  assert.match(readme, /not a certified LIXI \/ ApplyOnline schema/);
 });
 
 test("Priya handoff pack is confirmed export plus accepted documents", () => {
@@ -186,6 +245,9 @@ test("Priya handoff pack is confirmed export plus accepted documents", () => {
   const csv = readZipEntry(packed.bytes, csvName ?? "")?.toString("utf8") ?? "";
   assert.match(csv, /photo_id\.full_name/);
   assert.match(csv, /payslips\.employer_name/);
+  assert.match(csv, /sourceDocType/);
+  assert.match(csv, /confirmedAt/);
+  assert.match(csv, /SAMPLE=true|SAMPLE,concept/);
   assert.equal(csv.includes("photo_id.doc_number"), false);
   assert.equal(csv.includes("bank_statements.institution"), false);
 

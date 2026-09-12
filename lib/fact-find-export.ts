@@ -7,7 +7,7 @@ export const EXPORT_FORMATS = ["csv", "json"] as const;
 export type ExportFormat = (typeof EXPORT_FORMATS)[number];
 
 export const CONFIRMED_EXPORT_NOTICE =
-  "SAMPLE / FAKE confirmed PAYG fact-find. Handoff aid only — not a CRM replacement. Nothing is lodged to Quickli, FLEX, ApplyOnline or any lender. Only broker-confirmed fields are included. Draft and cleared values are left out on purpose.";
+  "SAMPLE / FAKE confirmed PAYG fact-find. Handoff aid only — not a CRM replacement and not a certified LIXI / ApplyOnline schema. Nothing is lodged to Quickli, FLEX, ApplyOnline or any lender. Only broker-confirmed fields are included (one row per confirmed field). Draft and cleared values are left out on purpose.";
 
 export type ConfirmedExportMeta = {
   caseId: string;
@@ -17,13 +17,16 @@ export type ConfirmedExportMeta = {
 };
 
 export type ConfirmedExportRow = {
+  SAMPLE: true;
+  concept: string;
   key: string;
   group: string;
   groupLabel: string;
   label: string;
   value: string;
-  sourceItemKey: string;
+  sourceDocType: string;
   sourceItemTitle: string;
+  confirmedAt: string;
   quickli: string;
   flex: string;
   notes: string;
@@ -52,17 +55,23 @@ export function handoffZipDownloadName(clientLabel: string, now = new Date()): s
   return `SAMPLE-${clientSlug(clientLabel)}-handoff-${yyyymmdd(now)}.zip`;
 }
 
-export function confirmedExportRows(fields: FactFindField[]): ConfirmedExportRow[] {
+export function confirmedExportRows(
+  fields: FactFindField[],
+  meta: ConfirmedExportMeta,
+): ConfirmedExportRow[] {
   return confirmedFields(fields).map((field) => {
     const mapping = mappingForFieldKey(field.key);
     return {
+      SAMPLE: true,
+      concept: mapping.concept,
       key: field.key,
       group: field.group,
       groupLabel: FACT_FIND_GROUP_LABELS[field.group],
       label: field.label,
       value: field.value,
-      sourceItemKey: field.sourceItemKey,
+      sourceDocType: field.sourceItemKey,
       sourceItemTitle: field.sourceItemTitle,
+      confirmedAt: field.confirmedAt?.trim() || meta.exportedAt,
       quickli: mapping.quickli,
       flex: mapping.flex,
       notes: mapping.notes,
@@ -82,40 +91,41 @@ export function serializeConfirmedCsv(
   fields: FactFindField[],
   meta: ConfirmedExportMeta,
 ): string {
-  const rows = confirmedExportRows(fields);
+  const rows = confirmedExportRows(fields, meta);
   const headerComments = [
     `# ${CONFIRMED_EXPORT_NOTICE}`,
     `# Case: ${meta.clientLabel}`,
     `# Case id: ${meta.caseId}`,
     `# Kind: ${meta.kind}`,
     `# Exported: ${meta.exportedAt}`,
-    "# Columns: group, group_label, key, label, value, source_document, quickli_hint, flex_hint, notes",
+    "# One row per confirmed field. SAMPLE=true. Zip of accepted documents stays accepted-only alongside.",
+    "# Columns: SAMPLE, concept, key, label, value, sourceDocType, confirmedAt, flex, quickli",
   ];
   const columns = [
-    "group",
-    "group_label",
+    "SAMPLE",
+    "concept",
     "key",
     "label",
     "value",
-    "source_document",
-    "quickli_hint",
-    "flex_hint",
-    "notes",
+    "sourceDocType",
+    "confirmedAt",
+    "flex",
+    "quickli",
   ];
   const lines = [
     ...headerComments,
     columns.join(","),
     ...rows.map((row) =>
       [
-        row.group,
-        row.groupLabel,
+        "true",
+        row.concept,
         row.key,
         row.label,
         row.value,
-        row.sourceItemTitle,
-        row.quickli,
+        row.sourceDocType,
+        row.confirmedAt,
         row.flex,
-        row.notes,
+        row.quickli,
       ]
         .map((cell) => csvCell(cell))
         .join(","),
@@ -128,9 +138,10 @@ export function serializeConfirmedJson(
   fields: FactFindField[],
   meta: ConfirmedExportMeta,
 ): string {
-  const rows = confirmedExportRows(fields);
+  const rows = confirmedExportRows(fields, meta);
   return `${JSON.stringify(
     {
+      SAMPLE: true,
       sample: true,
       label: "SAMPLE / FAKE",
       notice: CONFIRMED_EXPORT_NOTICE,
@@ -155,7 +166,7 @@ export function buildConfirmedFactFindExport(
 ):
   | { filename: string; body: string; contentType: string; count: number }
   | { error: string } {
-  const rows = confirmedExportRows(fields);
+  const rows = confirmedExportRows(fields, meta);
   if (rows.length === 0) {
     return {
       error:
